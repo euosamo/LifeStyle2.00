@@ -137,16 +137,31 @@ window.lifestyleDeleteAccount = async function () {
 window.lifestyleCloudSave = state => {
   if (!user || !db || !cloudReady || user.uid !== activeUid) return;
   const saveUser = user;
+  const snapshot = JSON.parse(JSON.stringify(state));
   clearTimeout(timer);
   timer = setTimeout(async () => {
     try {
       if (!cloudReady || !user || user.uid !== saveUser.uid) return;
-      await setDoc(ref(saveUser.uid), { state, updatedAt: serverTimestamp() });
+      await setDoc(ref(saveUser.uid), { state: snapshot, updatedAt: serverTimestamp() });
       if (user && user.uid === saveUser.uid) msg("Änderungen synchronisiert.");
     } catch (e) {
       msg(`Synchronisierung fehlgeschlagen (${e.code || "Fehler"}). Firestore-Regeln und Verbindung prüfen.`, true);
     }
   }, 700);
+};
+window.lifestyleFlushCloudSave = async () => {
+  clearTimeout(timer);
+  if (!user || !db || !cloudReady || user.uid !== activeUid) return;
+  const saveUser = user;
+  const currentState = typeof window.lifestyleGetState === "function" ? window.lifestyleGetState() : null;
+  if (!currentState) return;
+  try {
+    await setDoc(ref(saveUser.uid), { state: JSON.parse(JSON.stringify(currentState)), updatedAt: serverTimestamp() });
+    if (user && user.uid === saveUser.uid) msg("Daten vor der Abmeldung gespeichert.");
+  } catch (e) {
+    msg(`Speichern vor Abmeldung fehlgeschlagen (${e.code || "Fehler"}). Bitte Verbindung prüfen und erneut versuchen.`, true);
+    throw e;
+  }
 };
 
 function showApp() {
