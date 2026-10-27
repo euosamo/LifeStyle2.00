@@ -211,6 +211,7 @@ state.notes=(state.notes||[]).map(n=>({...n,reminder:n.reminder||{enabled:false,
 state.one=(state.one||[]).map((x,i)=>{if(!x[5]||typeof x[5]!=='object')x[5]={enabled:false,date:'',time:'09:00'};if(!x[6])x[6]='one-migrated-'+i+'-'+String(x[0]||'ausgabe');return x;});
 state.reminderFired=state.reminderFired||{};
 function persistState(){try{if(window.lifestyleUserStorageKey)localStorage.setItem(window.lifestyleUserStorageKey,JSON.stringify(state));}catch(e){}if(window.lifestyleCloudSave)window.lifestyleCloudSave(state);}
+window.lifestyleGetState=()=>state;
 function head(title,sub='',back=false,plus=''){return `<div class="topline">${back?'<button class="back" onclick="goBack()">‹</button>':''}<div class="headcopy"><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div>${plus?`<button class="circle-btn" onclick="${plus}">＋</button>`:''}</div>`}
 function icon(txt,cl){return `<span class="tile-icon ${cl}">${txt}</span>`}
 function tile(title,amount,sub,ico,cl,page){return `<button class="tile" onclick="navigate('${page}')">${icon(ico,cl)}<span class="chev">›</span><span class="tile-title">${title}</span><span class="tile-amount">${amount}</span><span class="tile-sub">${sub}</span></button>`}
