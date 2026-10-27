@@ -153,7 +153,19 @@ button, input, select, textarea { max-width:100%; }
 .auth-card input:focus{border-color:#1687ff}.auth-card button{width:100%;border:0;border-radius:11px;padding:13px;margin-top:12px;background:#1687ff;color:#fff;font-weight:700}
 .auth-card button.secondary{background:transparent;border:1px solid #244866;color:#c8d8eb}
 .auth-card button:disabled{opacity:.6}.auth-message{font-size:13px!important;min-height:20px;margin:12px 0!important;color:#75dba6!important}.auth-message.error{color:#ff8588!important}
-#authLogout{position:fixed;right:12px;top:12px;z-index:10;width:auto;padding:8px 12px;background:#173653;border:1px solid #315878;border-radius:10px;color:#fff}
+/* Abmelden sitzt in der Kopfzeile und überdeckt weder Plus noch Seitentitel */
+#authLogout{
+  position:fixed; right:16px;
+  top:calc(env(safe-area-inset-top, 0px) + 54px);
+  z-index:40; width:auto; max-width:112px;
+  min-height:42px; padding:8px 12px;
+  font-size:14px; line-height:1.2; white-space:nowrap;
+  background:#173653; border:1px solid #315878;
+  border-radius:12px; color:#fff;
+}
+@media (max-width:420px){
+  #authLogout{right:12px;max-width:100px;padding:8px 10px;font-size:13px}
+}
 
 </style>
 
