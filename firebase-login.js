@@ -98,6 +98,10 @@ try {
       if (!user || user.uid !== uid) return;
       cloudReady = true;
       showApp();
+      render();
+      if(!localStorage.getItem('lifestyle-finanz-guide-seen')){showFirstStart();}else if(!localStorage.getItem('lifestyle-finanz-onboarding-done')){showFirstStart();}
+      checkReminders();
+      if(!window.lifestyleReminderTimer) window.lifestyleReminderTimer = setInterval(checkReminders,15000);
       msg("");
     } catch (e) {
       cloudReady = false;
