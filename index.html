@@ -7,11 +7,10 @@
 <title>Finanzen – Übersicht</title>
 <style>
 :root{--bg:#030d1b;--panel:#07182b;--panel2:#0a2038;--panel3:#0d2947;--line:#173653;--text:#f3f7ff;--muted:#91a7c1;--blue:#1687ff;--blue2:#2b96ff;--green:#45d887;--red:#ff6568;--orange:#ff8b31;--purple:#8c5bff;--radius:17px}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#020915;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}body{display:flex;justify-content:center}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#020915;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}body{display:block;width:100%;min-width:0}
 button,input,select{font:inherit}button{color:inherit;cursor:pointer}
-.app{width:100%;max-width:440px;min-height:100dvh;background:linear-gradient(180deg,#061426 0%,#03101f 100%);position:relative;padding-bottom:84px;overflow:hidden;box-shadow:0 0 0 1px #132940}
-.status{height:25px;padding:5px 17px 0;font-size:11px;font-weight:700;display:flex;justify-content:space-between;color:#f6f8fc}
-.topline{display:flex;align-items:center;gap:12px;padding:12px 15px 10px}
+.app{width:100%;max-width:none;min-height:100dvh;background:linear-gradient(180deg,#061426 0%,#03101f 100%);position:relative;padding-bottom:84px;overflow:hidden}
+.topline{display:flex;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top)) 15px 10px}
 .back{border:0;background:transparent;font-size:26px;line-height:1;padding:0 2px;color:#dce9f9}
 .headcopy{min-width:0;flex:1}.headcopy h1{font-size:21px;line-height:1.15;margin:0;font-weight:750;letter-spacing:-.35px}.headcopy p{font-size:11px;color:var(--muted);margin:3px 0 0}
 .actions{display:flex;gap:10px}.circle-btn{height:34px;width:34px;border-radius:12px;background:#0d2036;border:1px solid #1c3854;display:grid;place-items:center;font-size:17px}
@@ -32,9 +31,9 @@ button,input,select{font:inherit}button{color:inherit;cursor:pointer}
 .goal{background:linear-gradient(145deg,#0b223b,#071729);border:1px solid #14314d;border-radius:15px;padding:12px;margin-bottom:9px;display:flex;gap:10px}.goal-icon{width:39px;height:39px;border-radius:11px;display:grid;place-items:center;font-size:20px;flex-shrink:0}.goal-main{flex:1}.goal-title{font-size:12px;font-weight:700}.goal-amount{font-size:12px;font-weight:750;margin-top:3px}.goal-meta{font-size:10px;color:#9db0c8;display:flex;justify-content:space-between;margin-top:5px}
 .menu-item{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid #132a42;font-size:12px;color:#e3ebf6;text-align:left;width:100%;background:transparent;border-top:0;border-left:0;border-right:0}.menu-item:last-child{border-bottom:0}.menu-icon{width:24px;text-align:center;font-size:17px;color:#c4d6eb}.menu-item .chev{margin-left:auto;font-size:20px;color:#91aac5}
 .form-field{display:block;margin:12px 0;color:#aabbd0;font-size:11px}.form-field span{display:block;margin-bottom:6px}.form-field input,.form-field select,.form-field textarea{width:100%;background:#091d32;border:1px solid #244665;border-radius:11px;padding:11px;color:#f3f7ff;font-size:13px;outline:none}.form-field textarea{min-height:88px;resize:vertical}.reminder-row{background:linear-gradient(145deg,#0b2037,#071729);border:1px solid #17334f;border-radius:14px;padding:12px;margin-bottom:10px}.reminder-top{display:flex;align-items:center;gap:9px;justify-content:space-between}.reminder-name{font-size:13px;font-weight:750}.reminder-hint{font-size:10px;color:#91a7c1;margin-top:4px}.switch{accent-color:#1687ff;width:19px;height:19px}.reminder-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.note-reminder{font-size:10px;color:#75baff;margin-top:5px}.form-actions{display:flex;gap:8px;margin-top:14px}.form-actions button{flex:1}
-.bottom-nav{position:fixed;z-index:30;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,440px);height:69px;padding:7px 6px calc(7px + env(safe-area-inset-bottom));background:rgba(4,15,29,.97);border-top:1px solid #18314a;display:grid;grid-template-columns:repeat(4,1fr);backdrop-filter:blur(14px)}.nav-btn{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#a5b6ca;font-size:9px}.nav-btn .nav-icon{font-size:18px;line-height:1}.nav-btn.active{color:#2997ff;font-weight:750}.nav-btn.active:after{content:"";height:2px;width:22px;border-radius:3px;background:#1b91ff;position:absolute;bottom:4px}
+.bottom-nav{position:fixed;z-index:30;bottom:0;left:0;transform:none;width:100%;height:calc(69px + env(safe-area-inset-bottom));padding:7px 6px calc(7px + env(safe-area-inset-bottom));background:rgba(4,15,29,.97);border-top:1px solid #18314a;display:grid;grid-template-columns:repeat(4,1fr);backdrop-filter:blur(14px)}.nav-btn{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#a5b6ca;font-size:9px}.nav-btn .nav-icon{font-size:18px;line-height:1}.nav-btn.active{color:#2997ff;font-weight:750}.nav-btn.active:after{content:"";height:2px;width:22px;border-radius:3px;background:#1b91ff;position:absolute;bottom:4px}
 .form-row{display:flex;flex-direction:column;gap:6px;margin:12px 0}.form-row label{font-size:11px;color:#a9bdd3}.form-row input,.form-row select{width:100%;background:#071629;border:1px solid #1b3855;border-radius:11px;color:white;padding:11px}.primary{border:0;background:linear-gradient(135deg,#2799ff,#0864d5);border-radius:12px;padding:12px 16px;font-size:12px;font-weight:750;width:100%;margin-top:6px}.empty{color:#91a7c1;font-size:12px;padding:20px;text-align:center}
-@media(min-width:600px){body{padding:18px 0}.app{min-height:calc(100dvh - 36px);border-radius:28px;overflow:hidden}.bottom-nav{bottom:18px;border-radius:0 0 28px 28px}}
+@media(min-width:600px){.app{min-height:100dvh}.bottom-nav{bottom:0;border-radius:0}}
 
 /* Korrektur: Bearbeiten/Löschen und Zurück-Button im bestehenden Lifestyle-Look */
 .item-actions{display:flex!important;align-items:center;gap:6px;margin-left:5px;flex-shrink:0}
@@ -58,7 +57,6 @@ button,input,select{font:inherit}button{color:inherit;cursor:pointer}
 \n</head>
 <body>
 <div class="app" id="app">
-  <div class="status"><span>09:41</span><span>▮▮▮ ◉ ▰</span></div>
   <div id="topline" class="topline"></div>
   <main id="content" class="content"></main>
   <nav class="bottom-nav">

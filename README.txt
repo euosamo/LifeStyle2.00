@@ -1,15 +1,14 @@
-LIFESTYLE FINANZEN – PWA-PAKET
+LIFESTYLE FINANZEN – KORRIGIERTES PWA-PAKET
 
-Enthalten:
-- index.html: deine App, basierend auf der bereitgestellten ZIP
-- manifest.webmanifest: Installationsdaten für iPhone/Android
-- sw.js: Offline-Cache und Aktualisierung beim erneuten Öffnen
-- icon-192.png / icon-512.png: App-Symbole
+Korrekturen:
+- Die fest eingetragene Beispiel-Uhrzeit und nachgebildeten Statussymbole wurden entfernt.
+- Die App ist nicht mehr auf 440 Pixel begrenzt und nutzt die verfügbare Bildschirmbreite.
+- Die untere Navigation nutzt die volle Breite und berücksichtigt den iPhone-Sicherheitsbereich.
+- Der Service-Worker-Cache wurde auf v2 erhöht, damit die korrigierten Dateien neu geladen werden.
 
-WICHTIG:
-1. Die Dateien müssen gemeinsam unter derselben HTTPS-Adresse gehostet werden (z. B. GitHub Pages).
-2. Auf dem iPhone die HTTPS-Adresse in Safari öffnen -> Teilen -> „Zum Home-Bildschirm“.
-3. Änderungen an der gehosteten App werden beim nächsten Öffnen abgerufen. Nach einer Aktualisierung die App ggf. einmal schließen und erneut öffnen.
-4. Die App speichert ihre Daten aktuell im lokalen Speicher des Browsers (localStorage). Solange dieselbe Adresse/Origin und derselbe Speicher verwendet werden, bleiben die Daten bei normalen App-Updates erhalten.
-5. Lokale Speicherung ist keine geräteübergreifende Cloud-Sicherung. Browserdaten löschen, die App/Website-Daten entfernen oder das Gerät wechseln kann die Daten löschen bzw. nicht übertragen. Regelmäßig die vorhandene Funktion „Datensicherung herunterladen“ nutzen.
-6. Dieses Paket richtet eine installierbare PWA ein; es veröffentlicht die App nicht automatisch und richtet keine Cloud-Synchronisierung ein.
+Veröffentlichen:
+1. Alle Dateien aus diesem Ordner im GitHub-Repository LifeStyle2.00 im Stammverzeichnis hochladen und die alten Dateien ersetzen.
+2. Auf GitHub Pages warten, bis der Build fertig ist.
+3. Die App auf dem iPhone vollständig schließen und erneut öffnen. Falls noch die alte Version erscheint, die Website in Safari neu laden.
+
+Hinweis: Die App speichert Daten lokal im Browser. Vor dem Update nach Möglichkeit „Datensicherung herunterladen“ verwenden.
