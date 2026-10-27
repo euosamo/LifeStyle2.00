@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -65,8 +65,13 @@ document.getElementById("authForm").addEventListener("submit", async e => {
   msg(mode === "register" ? "Konto wird erstellt …" : "Anmeldung läuft …");
   try {
     if (!auth) throw new Error("Firebase ist nicht gestartet.");
-    if (mode === "register") await createUserWithEmailAndPassword(auth, email, password);
-    else await signInWithEmailAndPassword(auth, email, password);
+    if (mode === "register") {
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      await sendEmailVerification(credential.user);
+      msg("Bestätigungs-E-Mail wurde angefordert. Bitte öffne dein E-Mail-Postfach und bestätige die Adresse, bevor du Lifestyle nutzt.");
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
+    }
   } catch (e) {
     msg(authError(e), true);
   } finally {
@@ -112,6 +117,39 @@ function showApp() {
   appRoot.hidden = false;
   document.body.classList.add("authenticated");
 }
+function showVerificationGate(currentUser) {
+  gate.hidden = false;
+  appRoot.hidden = true;
+  document.body.classList.remove("authenticated");
+  document.getElementById("authLogout").hidden = true;
+  let verify = document.getElementById("verifyEmailActions");
+  if (!verify) {
+    verify = document.createElement("div");
+    verify.id = "verifyEmailActions";
+    verify.innerHTML = '<button id="resendVerification" class="secondary" type="button">Bestätigungs-E-Mail erneut senden</button><button id="checkVerification" class="secondary" type="button">Ich habe bestätigt – erneut prüfen</button>';
+    message.insertAdjacentElement("afterend", verify);
+    document.getElementById("resendVerification").addEventListener("click", async () => {
+      try {
+        if (!auth.currentUser) throw new Error("Bitte melde dich erneut an.");
+        await sendEmailVerification(auth.currentUser);
+        msg("Eine neue Bestätigungs-E-Mail wurde angefordert. Bitte prüfe auch den Spam-Ordner.");
+      } catch (e) { msg(authError(e), true); }
+    });
+    document.getElementById("checkVerification").addEventListener("click", async () => {
+      try {
+        if (!auth.currentUser) throw new Error("Bitte melde dich erneut an.");
+        await reload(auth.currentUser);
+        if (auth.currentUser.emailVerified) window.location.reload();
+        else msg("Die E-Mail ist noch nicht bestätigt. Bitte öffne den Link in der E-Mail und versuche es erneut.");
+      } catch (e) { msg(authError(e), true); }
+    });
+  }
+  verify.hidden = false;
+  document.getElementById("authForm").hidden = true;
+  document.getElementById("authForgot").hidden = true;
+  document.getElementById("authSwitch").hidden = true;
+  msg("Bitte bestätige zuerst deine E-Mail-Adresse (" + (currentUser.email || "") + "). Erst danach kannst du deine Finanzübersicht öffnen.");
+}
 formMode();
 
 try {
@@ -124,6 +162,11 @@ try {
     cloudReady = false;
     user = nextUser;
     if (!user) {
+      const verify = document.getElementById("verifyEmailActions");
+      if (verify) verify.hidden = true;
+      document.getElementById("authForm").hidden = false;
+      document.getElementById("authForgot").hidden = false;
+      document.getElementById("authSwitch").hidden = false;
       activeUid = null;
       window.lifestyleUserStorageKey = null;
       gate.hidden = false;
@@ -133,6 +176,17 @@ try {
       return;
     }
 
+    if (!user.emailVerified) {
+      activeUid = null;
+      window.lifestyleUserStorageKey = null;
+      showVerificationGate(user);
+      return;
+    }
+    const verify = document.getElementById("verifyEmailActions");
+    if (verify) verify.hidden = true;
+    document.getElementById("authForm").hidden = false;
+    document.getElementById("authForgot").hidden = false;
+    document.getElementById("authSwitch").hidden = false;
     const uid = user.uid;
     activeUid = uid;
     window.lifestyleUserStorageKey = "lifestyle-finanz-app-user-" + uid;
