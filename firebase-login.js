@@ -67,6 +67,7 @@ document.getElementById("authForm").addEventListener("submit", async e => {
     if (!auth) throw new Error("Firebase ist nicht gestartet.");
     if (mode === "register") {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
+      try { localStorage.setItem("lifestyle-finanz-new-user-uid", credential.user.uid); } catch (_) {}
       await sendEmailVerification(credential.user);
       msg("Bestätigungs-E-Mail wurde angefordert. Bitte öffne dein E-Mail-Postfach und bestätige die Adresse, bevor du Lifestyle nutzt.");
     } else {
@@ -263,8 +264,10 @@ try {
       cloudReady = true;
       showApp();
       window.render();
-      if (!localStorage.getItem("lifestyle-finanz-guide-seen") || !localStorage.getItem("lifestyle-finanz-onboarding-done")) {
-        if (typeof window.showFirstStart === "function") window.showFirstStart();
+      let newlyRegistered = false;
+      try { newlyRegistered = localStorage.getItem("lifestyle-finanz-new-user-uid") === uid; } catch (_) {}
+      if (newlyRegistered && !chosenState?.onboardingComplete && typeof window.showFirstStart === "function") {
+        window.showFirstStart();
       }
       if (typeof window.checkReminders === "function") {
         window.checkReminders();
