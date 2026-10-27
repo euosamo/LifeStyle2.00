@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifestyle-finanz-app-v3';
+const CACHE_NAME = 'lifestyle-finanz-app-v4';
 const APP_FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {

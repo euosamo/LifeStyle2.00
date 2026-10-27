@@ -51,6 +51,84 @@ button,input,select{font:inherit}button{color:inherit;cursor:pointer}
 
 .guide-modal{max-width:440px}.guide-count{font-size:11px;color:#80bdff;font-weight:750;margin-bottom:9px}.guide-progress{height:5px;background:#17324d;border-radius:99px;overflow:hidden;margin-bottom:18px}.guide-progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,#1687ff,#55b5ff);transition:width .2s}.guide-modal p,.input-modal p{font-size:13px;line-height:1.65;color:#b4c5d8}.guide-modal .input-modal-actions{flex-wrap:wrap}.guide-modal #guideSkip{flex:1}.guide-modal #guideBack{flex:1}.guide-modal #guideNext{flex:1}.form-field{display:block;margin:10px 0}.form-field span{display:block;color:#9eb5ce;font-size:11px;margin-bottom:6px}.form-field input{width:100%;box-sizing:border-box;padding:12px;border-radius:11px;border:1px solid #23496c;background:#081a2e;color:#f3f7ff;font-size:14px}
 
+
+/* iPhone-Layout v4: Safe Areas, bessere Lesbarkeit und keine Überlagerungen */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { width:100%; min-width:0; overflow-x:hidden; }
+body { margin:0; }
+.app {
+  width:100%; max-width:none; min-width:0;
+  min-height:100vh; min-height:100svh; min-height:100dvh;
+  padding-top:calc(env(safe-area-inset-top, 0px) + 8px);
+  padding-bottom:calc(88px + env(safe-area-inset-bottom, 0px));
+  overflow:clip;
+}
+.topline {
+  width:100%; min-width:0; gap:10px;
+  padding:8px 16px 12px;
+  scroll-margin-top:env(safe-area-inset-top, 0px);
+}
+.headcopy { min-width:0; overflow-wrap:anywhere; }
+.headcopy h1 { font-size:clamp(22px, 5.6vw, 28px); line-height:1.2; overflow-wrap:anywhere; }
+.headcopy p { font-size:clamp(13px, 3.5vw, 15px); line-height:1.35; }
+.content {
+  width:100%; min-width:0; padding:0 16px 28px;
+  min-height:calc(100svh - 145px);
+  overflow-x:hidden; overflow-y:visible;
+  overflow-wrap:anywhere;
+}
+.content * { min-width:0; }
+.hero { padding:16px; }
+.eyebrow { font-size:clamp(13px, 3.4vw, 15px); line-height:1.4; }
+.balance { font-size:clamp(30px, 7.5vw, 38px); line-height:1.15; overflow-wrap:anywhere; }
+.next-pay { font-size:clamp(13px, 3.4vw, 15px); line-height:1.45; gap:8px; }
+.summary-label { font-size:clamp(12px, 3.1vw, 14px); line-height:1.35; }
+.summary-value { font-size:clamp(15px, 3.8vw, 18px); line-height:1.3; overflow-wrap:anywhere; }
+.section-title { font-size:clamp(17px, 4.4vw, 20px); line-height:1.3; gap:10px; }
+.link { font-size:clamp(13px, 3.4vw, 15px); white-space:normal; text-align:right; }
+.tiles { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.tile { min-width:0; padding:13px 11px; min-height:120px; }
+.tile-title { font-size:clamp(12px, 3.2vw, 14px); white-space:normal; line-height:1.35; padding-right:13px; overflow-wrap:anywhere; }
+.tile-amount { font-size:clamp(16px, 4vw, 18px); line-height:1.25; }
+.tile-sub { font-size:clamp(12px, 3.1vw, 14px); line-height:1.4; overflow-wrap:anywhere; }
+.compare-head, .card-title { font-size:clamp(14px, 3.6vw, 16px); line-height:1.35; gap:8px; }
+.compare-copy { font-size:clamp(12px, 3.1vw, 14px); line-height:1.5; }
+.compare-copy b { font-size:clamp(13px, 3.3vw, 15px); }
+.transaction { gap:9px; }
+.tx-name { font-size:clamp(14px, 3.6vw, 16px); line-height:1.35; overflow-wrap:anywhere; }
+.tx-date { font-size:clamp(12px, 3.1vw, 14px); line-height:1.35; }
+.tx-amount { font-size:clamp(14px, 3.6vw, 16px); white-space:normal; text-align:right; }
+.form-field { font-size:clamp(13px, 3.4vw, 15px); line-height:1.4; }
+.form-field span { line-height:1.4; }
+.form-field input, .form-field select, .form-field textarea,
+.form-row input, .form-row select, .search, .month-select { font-size:16px; line-height:1.35; max-width:100%; }
+.form-row label, .menu-item { font-size:clamp(14px, 3.6vw, 16px); line-height:1.4; }
+.primary, .overview-btn, .form-actions button { font-size:clamp(14px, 3.6vw, 16px); line-height:1.35; min-height:46px; }
+.card, .list-card, .goal, .reminder-row { max-width:100%; overflow-wrap:anywhere; }
+.bottom-nav {
+  left:0; right:0; width:100%; max-width:none; transform:none;
+  bottom:0; height:calc(70px + env(safe-area-inset-bottom, 0px));
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.nav-btn { min-width:0; font-size:clamp(11px, 2.9vw, 13px); line-height:1.25; gap:5px; white-space:normal; text-align:center; }
+.nav-btn .nav-icon { font-size:21px; }
+.nav-btn.active:after { bottom:calc(3px + env(safe-area-inset-bottom, 0px)); }
+.input-modal-backdrop { padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px)); overflow-y:auto; }
+.input-modal { max-height:calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; }
+button, input, select, textarea { max-width:100%; }
+@media (max-width:380px) {
+  .content { padding-left:12px; padding-right:12px; }
+  .topline { padding-left:12px; padding-right:12px; }
+  .tiles { gap:8px; }
+  .tile { padding:11px 9px; }
+  .tile-title { font-size:12px; }
+}
+@media (min-width:700px) {
+  .app { max-width:900px; margin:0 auto; border-left:1px solid #173653; border-right:1px solid #173653; }
+  .bottom-nav { left:50%; transform:translateX(-50%); max-width:900px; }
+}
+
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
