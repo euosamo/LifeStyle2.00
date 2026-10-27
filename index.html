@@ -142,6 +142,19 @@ button, input, select, textarea { max-width:100%; }
 .lifestyle-prompt .prompt-actions,.input-modal-actions{display:flex;gap:12px;margin-top:22px}.lifestyle-prompt .prompt-actions button,.input-modal-actions button{flex:1;min-height:58px;border-radius:16px;border:1px solid #31577d;background:#122d4b;color:#f3f7ff;font-size:17px;font-weight:650;padding:12px}.lifestyle-prompt .prompt-actions .confirm,.input-modal-actions .save{background:linear-gradient(120deg,#279aff,#0864d5);border-color:#2389ee;color:white}.lifestyle-prompt .prompt-actions .cancel{background:#122b46}
 @media(max-width:430px){.input-modal,.lifestyle-prompt{padding:20px;border-radius:23px}.lifestyle-prompt input{min-height:60px}.lifestyle-prompt .prompt-actions button,.input-modal-actions button{min-height:54px;font-size:16px}}
 
+
+#authGate{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at top,#0b2d50 0%,#020915 65%);color:#f3f7ff}
+#authGate[hidden]{display:none!important}#app[hidden]{display:none!important}
+.auth-card{width:100%;max-width:420px;background:#07182b;border:1px solid #173653;border-radius:22px;padding:26px;box-shadow:0 18px 55px #0006}
+.auth-brand{font-size:13px;letter-spacing:1.5px;color:#6bb6ff;font-weight:800;text-transform:uppercase}
+.auth-card h1{font-size:27px;margin:12px 0 8px}.auth-card p{color:#91a7c1;line-height:1.5;font-size:14px}
+.auth-card label{display:block;margin:16px 0 6px;color:#c8d8eb;font-size:13px}
+.auth-card input{display:block;width:100%;margin-top:7px;padding:13px;border:1px solid #244866;border-radius:11px;background:#030d1b;color:#fff;outline:none}
+.auth-card input:focus{border-color:#1687ff}.auth-card button{width:100%;border:0;border-radius:11px;padding:13px;margin-top:12px;background:#1687ff;color:#fff;font-weight:700}
+.auth-card button.secondary{background:transparent;border:1px solid #244866;color:#c8d8eb}
+.auth-card button:disabled{opacity:.6}.auth-message{font-size:13px!important;min-height:20px;margin:12px 0!important;color:#75dba6!important}.auth-message.error{color:#ff8588!important}
+#authLogout{position:fixed;right:12px;top:12px;z-index:10;width:auto;padding:8px 12px;background:#173653;border:1px solid #315878;border-radius:10px;color:#fff}
+
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -150,7 +163,25 @@ button, input, select, textarea { max-width:100%; }
 <meta name="apple-mobile-web-app-title" content="Lifestyle Finanzen">
 </head>
 <body>
-<div class="app" id="app">
+<section id="authGate" aria-live="polite">
+  <div class="auth-card">
+    <div class="auth-brand">Lifestyle Finanzen</div>
+    <h1 id="authTitle">Willkommen zurück</h1>
+    <p id="authSubtitle">Melde dich an, um deine Finanzen zu öffnen.</p>
+    <form id="authForm">
+      <label for="authEmail">E-Mail-Adresse</label><input id="authEmail" type="email" autocomplete="email" required>
+      <label for="authPassword">Passwort</label><input id="authPassword" type="password" autocomplete="current-password" minlength="6" required>
+      <button id="authSubmit" type="submit">Anmelden</button>
+    </form>
+    <button id="authForgot" class="secondary" type="button">Passwort vergessen?</button>
+    <button id="authSwitch" class="secondary" type="button">Neues Konto erstellen</button>
+    <p id="authMessage" class="auth-message"></p>
+    <p>Deine Finanzdaten werden nach Einrichtung des Online-Speichers getrennt pro Konto gespeichert.</p>
+  </div>
+</section>
+<button id="authLogout" type="button" hidden>Abmelden</button>
+
+<div class="app" id="app" hidden>
   <div id="topline" class="topline"></div>
   <main id="content" class="content"></main>
   <nav class="bottom-nav">
@@ -169,7 +200,7 @@ state.reminders=state.reminders||{inst:{enabled:false,day:1,time:'09:00'},one:{e
 state.notes=(state.notes||[]).map(n=>({...n,reminder:n.reminder||{enabled:false,date:'',time:'09:00'}}));
 state.one=(state.one||[]).map((x,i)=>{if(!x[5]||typeof x[5]!=='object')x[5]={enabled:false,date:'',time:'09:00'};if(!x[6])x[6]='one-migrated-'+i+'-'+String(x[0]||'ausgabe');return x;});
 state.reminderFired=state.reminderFired||{};
-function persistState(){try{localStorage.setItem('lifestyle-finanz-app-v3-empty',JSON.stringify(state));}catch(e){}}
+function persistState(){try{localStorage.setItem('lifestyle-finanz-app-v3-empty',JSON.stringify(state));}catch(e){}if(window.lifestyleCloudSave)window.lifestyleCloudSave(state);}
 function head(title,sub='',back=false,plus=''){return `<div class="topline">${back?'<button class="back" onclick="goBack()">‹</button>':''}<div class="headcopy"><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div>${plus?`<button class="circle-btn" onclick="${plus}">＋</button>`:''}</div>`}
 function icon(txt,cl){return `<span class="tile-icon ${cl}">${txt}</span>`}
 function tile(title,amount,sub,ico,cl,page){return `<button class="tile" onclick="navigate('${page}')">${icon(ico,cl)}<span class="chev">›</span><span class="tile-title">${title}</span><span class="tile-amount">${amount}</span><span class="tile-sub">${sub}</span></button>`}
@@ -351,6 +382,8 @@ if(!localStorage.getItem('lifestyle-finanz-guide-seen')){showFirstStart()}else i
 checkReminders();
 setInterval(checkReminders,15000);
 </script>
+
+<script type="module" src="./firebase-login.js"></script>
 
 <script>
 (() => {
