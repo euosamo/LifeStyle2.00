@@ -162,7 +162,7 @@ function showVerificationGate(currentUser) {
   if (!verify) {
     verify = document.createElement("div");
     verify.id = "verifyEmailActions";
-    verify.innerHTML = '<button id="resendVerification" class="secondary" type="button">Bestätigungs-E-Mail erneut senden</button><button id="checkVerification" class="secondary" type="button">Ich habe bestätigt – erneut prüfen</button>';
+    verify.innerHTML = '<button id="resendVerification" class="secondary" type="button">Bestätigungs-E-Mail erneut senden</button><button id="checkVerification" class="secondary" type="button">Ich habe bestätigt – erneut prüfen</button><button id="changeVerificationEmail" class="secondary" type="button">Zurück – E-Mail-Adresse ändern</button>';
     message.insertAdjacentElement("afterend", verify);
     document.getElementById("resendVerification").addEventListener("click", async () => {
       try {
@@ -177,6 +177,21 @@ function showVerificationGate(currentUser) {
         await reload(auth.currentUser);
         if (auth.currentUser.emailVerified) window.location.reload();
         else msg("Die E-Mail ist noch nicht bestätigt. Bitte öffne den Link in der E-Mail und versuche es erneut.");
+      } catch (e) { msg(authError(e), true); }
+    });
+    document.getElementById("changeVerificationEmail").addEventListener("click", async () => {
+      const previousEmail = auth.currentUser?.email || document.getElementById("authEmail").value;
+      try {
+        await signOut(auth);
+        document.getElementById("authEmail").value = previousEmail;
+        mode = "register";
+        formMode();
+        document.getElementById("authForm").hidden = false;
+        document.getElementById("authForgot").hidden = true;
+        document.getElementById("authSwitch").hidden = false;
+        document.getElementById("authSwitch").textContent = "Ich habe bereits ein Konto";
+        msg("Prüfe oder ändere die E-Mail-Adresse und registriere dich erneut. Eine falsch geschriebene Adresse kann nicht nachträglich geändert werden.");
+        document.getElementById("authEmail").focus();
       } catch (e) { msg(authError(e), true); }
     });
   }
