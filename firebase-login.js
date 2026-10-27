@@ -92,8 +92,16 @@ document.getElementById("authForgot").addEventListener("click", async () => {
 });
 document.getElementById("authLogout").addEventListener("click", async () => {
   if (auth) {
-    try { await signOut(auth); }
-    catch (e) { msg(authError(e), true); }
+    const button = document.getElementById("authLogout");
+    button.disabled = true;
+    try {
+      if (typeof window.lifestyleFlushCloudSave === "function") await window.lifestyleFlushCloudSave();
+      await signOut(auth);
+    } catch (e) {
+      msg("Abmeldung abgebrochen, damit deine Daten nicht verloren gehen. Bitte Verbindung prüfen und erneut versuchen.", true);
+    } finally {
+      button.disabled = false;
+    }
   }
 });
 
