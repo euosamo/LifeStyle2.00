@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, setPersistence, browserLocalPersistence, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBsklHgKgsiwEmY_PhmLxhYTdiGlbXpCqc",
@@ -97,6 +97,42 @@ document.getElementById("authLogout").addEventListener("click", async () => {
 });
 
 const ref = uid => doc(db, "users", uid, "appData", "main");
+
+window.lifestyleDeleteAccount = async function () {
+  if (!auth || !db || !auth.currentUser) {
+    msg("Bitte melde dich zuerst an.", true);
+    return;
+  }
+  const current = auth.currentUser;
+  const confirmed = await window.appConfirm("Möchtest du dein Lifestyle-Konto wirklich dauerhaft löschen? Deine gespeicherten Finanzdaten und dein Login werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.");
+  if (!confirmed) return;
+  const password = await window.appPrompt("Bitte gib zur Sicherheitsprüfung dein Passwort ein:");
+  if (password === null || !password) {
+    msg("Kontolöschung abgebrochen. Zur Löschung ist eine erneute Sicherheitsprüfung nötig.");
+    return;
+  }
+  try {
+    msg("Konto wird sicherheitshalber geprüft …");
+    await reauthenticateWithCredential(current, EmailAuthProvider.credential(current.email, password));
+    clearTimeout(timer);
+    cloudReady = false;
+    activeUid = null;
+    msg("Gespeicherte Finanzdaten werden gelöscht …");
+    await deleteDoc(ref(current.uid));
+    try { localStorage.removeItem("lifestyle-finanz-app-user-" + current.uid); } catch (_) {}
+    await deleteUser(current);
+    try { localStorage.removeItem("lifestyle-finanz-guide-seen"); localStorage.removeItem("lifestyle-finanz-onboarding-done"); } catch (_) {}
+    msg("Dein Konto wurde gelöscht.");
+  } catch (e) {
+    if (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential") {
+      msg("Das Passwort stimmt nicht. Dein Konto wurde nicht gelöscht.", true);
+    } else if (e.code === "auth/requires-recent-login") {
+      msg("Die Sicherheitsprüfung ist abgelaufen. Bitte melde dich ab und wieder an und versuche es erneut.", true);
+    } else {
+      msg("Kontolöschung fehlgeschlagen (" + (e.code || e.message || "unbekannter Fehler") + "). Bitte erneut versuchen.", true);
+    }
+  }
+};
 window.lifestyleCloudSave = state => {
   if (!user || !db || !cloudReady || user.uid !== activeUid) return;
   const saveUser = user;
