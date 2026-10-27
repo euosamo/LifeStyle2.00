@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -15,7 +15,12 @@ const appRoot = document.getElementById("app");
 const message = document.getElementById("authMessage");
 let mode = "login", user = null, db = null, auth = null, cloudReady = false, timer = null;
 let activeUid = null;
-function msg(text, error = false) { message.textContent = text; message.className = error ? "auth-message error" : "auth-message"; }
+
+function msg(text, error = false) {
+  if (!message) return;
+  message.textContent = text;
+  message.className = error ? "auth-message error" : "auth-message";
+}
 function formMode() {
   const reg = mode === "register";
   document.getElementById("authTitle").textContent = reg ? "Konto erstellen" : "Willkommen zurück";
@@ -25,30 +30,67 @@ function formMode() {
   document.getElementById("authForgot").hidden = reg;
   msg("");
 }
-function setupMissing() { msg("Firebase ist noch nicht vollständig eingerichtet. Bitte prüfe die Konfiguration.", true); }
-document.getElementById("authSwitch").addEventListener("click", () => { mode = mode === "login" ? "register" : "login"; formMode(); });
+function authError(e) {
+  const errors = {
+    "auth/invalid-email": "Bitte eine gültige E-Mail-Adresse eingeben.",
+    "auth/weak-password": "Das Passwort muss mindestens 6 Zeichen haben.",
+    "auth/email-already-in-use": "Diese E-Mail ist bereits registriert. Bitte anmelden.",
+    "auth/invalid-credential": "E-Mail oder Passwort stimmt nicht.",
+    "auth/user-not-found": "Für diese E-Mail gibt es noch kein Konto. Bitte registrieren.",
+    "auth/wrong-password": "Das Passwort stimmt nicht.",
+    "auth/network-request-failed": "Verbindung prüfen und erneut versuchen.",
+    "auth/operation-not-allowed": "E-Mail/Passwort-Anmeldung ist in Firebase nicht aktiviert.",
+    "auth/unauthorized-domain": "Diese Website ist in Firebase nicht als erlaubte Domain eingetragen.",
+    "auth/configuration-not-found": "Die Firebase-Authentifizierung ist nicht vollständig eingerichtet.",
+    "auth/too-many-requests": "Zu viele Versuche. Bitte später erneut probieren."
+  };
+  return errors[e.code] || `Anmeldung fehlgeschlagen (${e.code || e.message || "unbekannter Fehler"}).`;
+}
+function setupMissing() {
+  if (gate) gate.hidden = false;
+  if (appRoot) appRoot.hidden = true;
+  msg("Firebase konnte nicht gestartet werden. Bitte Internetverbindung und Firebase-Konfiguration prüfen.", true);
+}
+
+document.getElementById("authSwitch").addEventListener("click", () => {
+  mode = mode === "login" ? "register" : "login";
+  formMode();
+});
 document.getElementById("authForm").addEventListener("submit", async e => {
   e.preventDefault();
   const email = document.getElementById("authEmail").value.trim();
   const password = document.getElementById("authPassword").value;
-  const btn = document.getElementById("authSubmit"); btn.disabled = true;
+  const btn = document.getElementById("authSubmit");
+  btn.disabled = true;
   msg(mode === "register" ? "Konto wird erstellt …" : "Anmeldung läuft …");
   try {
-    if (!auth) throw new Error("setup");
+    if (!auth) throw new Error("Firebase ist nicht gestartet.");
     if (mode === "register") await createUserWithEmailAndPassword(auth, email, password);
     else await signInWithEmailAndPassword(auth, email, password);
   } catch (e) {
-    const errors = {"setup":"Firebase ist noch nicht eingerichtet.","auth/invalid-email":"Bitte eine gültige E-Mail-Adresse eingeben.","auth/weak-password":"Das Passwort muss mindestens 6 Zeichen haben.","auth/email-already-in-use":"Diese E-Mail ist bereits registriert. Bitte anmelden.","auth/invalid-credential":"E-Mail oder Passwort stimmt nicht.","auth/network-request-failed":"Verbindung prüfen und erneut versuchen.","auth/operation-not-allowed":"Bitte aktiviere E-Mail/Passwort in Firebase Authentication."};
-    msg(errors[e.code || e.message] || "Anmeldung fehlgeschlagen. Prüfe die Firebase-Einrichtung.", true);
-  } finally { btn.disabled = false; }
+    msg(authError(e), true);
+  } finally {
+    btn.disabled = false;
+  }
 });
 document.getElementById("authForgot").addEventListener("click", async () => {
   const email = document.getElementById("authEmail").value.trim();
   if (!email) return msg("Bitte zuerst die E-Mail-Adresse eingeben.", true);
-  try { if (!auth) throw new Error("setup"); await sendPasswordResetEmail(auth, email); msg("Falls ein Konto besteht, wurde eine E-Mail zum Zurücksetzen versendet."); }
-  catch (e) { msg(e.message === "setup" ? "Firebase ist noch nicht eingerichtet." : "E-Mail konnte nicht versendet werden.", true); }
+  try {
+    if (!auth) throw new Error("Firebase ist nicht gestartet.");
+    await sendPasswordResetEmail(auth, email);
+    msg("Falls ein Konto besteht, wurde eine E-Mail zum Zurücksetzen versendet.");
+  } catch (e) {
+    msg(authError(e), true);
+  }
 });
-document.getElementById("authLogout").addEventListener("click", async () => { if (auth) await signOut(auth); });
+document.getElementById("authLogout").addEventListener("click", async () => {
+  if (auth) {
+    try { await signOut(auth); }
+    catch (e) { msg(authError(e), true); }
+  }
+});
+
 const ref = uid => doc(db, "users", uid, "appData", "main");
 window.lifestyleCloudSave = state => {
   if (!user || !db || !cloudReady || user.uid !== activeUid) return;
@@ -59,13 +101,24 @@ window.lifestyleCloudSave = state => {
       if (!cloudReady || !user || user.uid !== saveUser.uid) return;
       await setDoc(ref(saveUser.uid), { state, updatedAt: serverTimestamp() });
       if (user && user.uid === saveUser.uid) msg("Änderungen synchronisiert.");
-    } catch (e) { msg("Synchronisierung fehlgeschlagen. Bitte Verbindung und Firestore-Regeln prüfen.", true); }
+    } catch (e) {
+      msg(`Synchronisierung fehlgeschlagen (${e.code || "Fehler"}). Firestore-Regeln und Verbindung prüfen.`, true);
+    }
   }, 700);
 };
-function showApp() { gate.hidden = true; appRoot.hidden = false; document.body.classList.add("authenticated"); }
+
+function showApp() {
+  gate.hidden = true;
+  appRoot.hidden = false;
+  document.body.classList.add("authenticated");
+}
 formMode();
+
 try {
-  const app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  await setPersistence(auth, browserLocalPersistence);
   onAuthStateChanged(auth, async nextUser => {
     clearTimeout(timer);
     cloudReady = false;
@@ -73,15 +126,18 @@ try {
     if (!user) {
       activeUid = null;
       window.lifestyleUserStorageKey = null;
-      gate.hidden = false; appRoot.hidden = true;
+      gate.hidden = false;
+      appRoot.hidden = true;
       document.body.classList.remove("authenticated");
       document.getElementById("authLogout").hidden = true;
       return;
     }
+
     const uid = user.uid;
     activeUid = uid;
     window.lifestyleUserStorageKey = "lifestyle-finanz-app-user-" + uid;
-    gate.hidden = false; appRoot.hidden = true;
+    gate.hidden = false;
+    appRoot.hidden = true;
     document.getElementById("authLogout").hidden = false;
     msg("Deine Finanzdaten werden geladen …");
     try {
@@ -91,6 +147,9 @@ try {
       const localState = localRaw ? JSON.parse(localRaw) : null;
       const cloudState = snap.exists() ? snap.data().state : null;
       const chosenState = cloudState || localState || null;
+      if (typeof window.lifestyleApplyState !== "function" || typeof window.render !== "function") {
+        throw new Error("App-Funktionen wurden nicht geladen.");
+      }
       window.lifestyleApplyState(chosenState);
       if (!snap.exists() && chosenState) {
         await setDoc(ref(uid), { state: chosenState, updatedAt: serverTimestamp() });
@@ -98,14 +157,24 @@ try {
       if (!user || user.uid !== uid) return;
       cloudReady = true;
       showApp();
-      render();
-      if(!localStorage.getItem('lifestyle-finanz-guide-seen')){showFirstStart();}else if(!localStorage.getItem('lifestyle-finanz-onboarding-done')){showFirstStart();}
-      checkReminders();
-      if(!window.lifestyleReminderTimer) window.lifestyleReminderTimer = setInterval(checkReminders,15000);
+      window.render();
+      if (!localStorage.getItem("lifestyle-finanz-guide-seen") || !localStorage.getItem("lifestyle-finanz-onboarding-done")) {
+        if (typeof window.showFirstStart === "function") window.showFirstStart();
+      }
+      if (typeof window.checkReminders === "function") {
+        window.checkReminders();
+        if (!window.lifestyleReminderTimer) window.lifestyleReminderTimer = setInterval(window.checkReminders, 15000);
+      }
       msg("");
     } catch (e) {
       cloudReady = false;
-      msg("Daten konnten nicht geladen werden. Bitte Firestore-Regeln, Verbindung und Datenbank prüfen.", true);
+      msg(`Anmeldung war erfolgreich, aber Finanzdaten konnten nicht geladen werden (${e.code || e.message || "Fehler"}). Firestore-Regeln und Datenbank prüfen.`, true);
     }
+  }, e => {
+    setupMissing();
+    msg(authError(e), true);
   });
-} catch (e) { setupMissing(); }
+} catch (e) {
+  setupMissing();
+  msg(authError(e), true);
+}
