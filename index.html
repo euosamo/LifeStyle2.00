@@ -153,19 +153,16 @@ button, input, select, textarea { max-width:100%; }
 .auth-card input:focus{border-color:#1687ff}.auth-card button{width:100%;border:0;border-radius:11px;padding:13px;margin-top:12px;background:#1687ff;color:#fff;font-weight:700}
 .auth-card button.secondary{background:transparent;border:1px solid #244866;color:#c8d8eb}
 .auth-card button:disabled{opacity:.6}.auth-message{font-size:13px!important;min-height:20px;margin:12px 0!important;color:#75dba6!important}.auth-message.error{color:#ff8588!important}
-/* Abmelden sitzt in der Kopfzeile und überdeckt weder Plus noch Seitentitel */
+/* Abmelden nur unten im Bereich „Mehr“ anzeigen */
 #authLogout{
-  position:fixed; right:16px;
-  top:calc(env(safe-area-inset-top, 0px) + 54px);
-  z-index:40; width:auto; max-width:112px;
-  min-height:42px; padding:8px 12px;
+  display:block; position:static; width:100%; max-width:none;
+  min-height:46px; margin:14px 0 10px; padding:12px 16px;
   font-size:14px; line-height:1.2; white-space:nowrap;
   background:#173653; border:1px solid #315878;
   border-radius:12px; color:#fff;
 }
-@media (max-width:420px){
-  #authLogout{right:12px;max-width:100px;padding:8px 10px;font-size:13px}
-}
+#authLogout[hidden]{display:none!important}
+.owner-footer{padding:12px 4px 4px;text-align:center;color:#7f96b1;font-size:11px;line-height:1.6}
 
 </style>
 
@@ -250,7 +247,7 @@ function isValidFromThisMonth(dateStr,today=new Date()){const m=String(dateStr||
 function installments(){return head('Raten & Verpflichtungen','',true,'addInstallment()')+`<div class="segmented"><button class="${!state.instOpen?'active':''}" onclick="state.instOpen=false;render()">Alle</button><button class="${state.instOpen?'active':''}" onclick="state.instOpen=true;render()">Offen</button></div>${state.inst.map((x,i)=>`<div class="list-card"><div class="transaction"><span class="tx-icon ${x[4]}">${escapeHTML(x[3])}</span><div class="tx-main"><div class="tx-name">${escapeHTML(x[0])}</div><div class="tx-date">${escapeHTML(x[2])}${x[5]?` · Beginn: ${escapeHTML(x[5])}`:` · Beginn noch nicht angegeben`}${x[7]?`<div class="tx-date">Ende: ${escapeHTML(formatReminderDate(x[7]))}</div>`:''}${x[5]?`<div class="note-reminder">${nextInstallmentDue(x[5],x[2],new Date(),x[7])?`Nächste Fälligkeit: ${formatLocalDate(nextInstallmentDue(x[5],x[2],new Date(),x[7]))} · ${dueCountdownLabel(nextInstallmentDue(x[5],x[2],new Date(),x[7]))}`:'Zahlungszeitraum beendet'}</div>`:'<div class="note-reminder">Bitte Beginn der Zahlung festlegen, damit der Countdown angezeigt wird.</div>'}${x[6]?.enabled?`<div class="note-reminder">◷ Erinnerung: ${escapeHTML(formatReminderDate(x[6].date))} um ${escapeHTML(x[6].time||"09:00")}</div>`:`<div class="tx-date">Keine eigene Erinnerung</div>`}</div></div><div class="tx-amount">${formatGermanEuro(parseGermanAmount(x[1]))}</div><div class="item-actions"><button aria-label="Bearbeiten" onclick="editItem('inst',${i})">✎</button><button aria-label="Löschen" onclick="deleteItem('inst',${i})">×</button></div></div></div>`).join('')}<button class="overview-btn" onclick="navigate('home')">‹ Zur Übersicht</button>`}
 function goals(){return head('Sparziele','',true,'addGoal()')+state.goals.map((x,i)=>`<div class="goal"><span class="goal-icon ${x[5]}">${escapeHTML(x[4])}</span><div class="goal-main"><div class="goal-title">${escapeHTML(x[0])}</div><div class="goal-amount">${formatGermanEuro(parseGermanAmount(x[1]))}</div><div class="progress ${x[4]==='🌴'?'greenbar':''}"><span style="width:${parseInt(x[3])||0}%"></span></div><div class="goal-meta"><span>${formatGermanEuro(parseGermanAmount(x[2]))} / ${formatGermanEuro(parseGermanAmount(x[1]))}</span><span>${escapeHTML(x[3])}</span></div></div><div class="item-actions"><button aria-label="Bearbeiten" onclick="editItem('goals',${i})">✎</button><button aria-label="Löschen" onclick="deleteItem('goals',${i})">×</button></div></div>`).join('')+`<button class="overview-btn" onclick="navigate('home')">‹ Zur Übersicht</button>`}
 function accounts(){return head('Verbundene Konten','',true,'addAccount()')+state.accounts.map(x=>`<div class="list-card"><button class="transaction" style="width:100%;background:transparent;border:0;text-align:left" onclick="showToast('${x[0]}')"><span class="tx-icon ${x[4]}" style="font-weight:800">${x[3]}</span><div class="tx-main"><div class="tx-name">${x[0]}</div><div class="tx-date">${x[1]}</div></div><div class="tx-amount">${formatGermanEuro(parseGermanAmount(x[2]))}</div><span class="chev" style="font-size:20px;color:#9eb6d0">›</span></button></div>`).join('')}
-function more(){return head('Mehr')+`<div class="card" style="padding:2px 12px">${[['♢','Kategorien verwalten','categories'],['♜','Verbundene Konten','accounts'],['▦','Layout bearbeiten','layout'],['☁','Datensicherung herunterladen','backup'],['▤','Notizen','notes'],['◷','Erinnerungen','reminders'],['⚙','Einstellungen','settings'],['◴','Werkseinstellungen','reset'],['ⓘ','Guide / Einführung','guide']].map(x=>`<button class="menu-item" onclick="navigate('${x[2]}')"><span class="menu-icon">${x[0]}</span><span>${x[1]}</span><span class="chev">›</span></button>`).join('')}</div>`}
+function more(){return head('Mehr')+`<div class="card" style="padding:2px 12px">${[['♢','Kategorien verwalten','categories'],['♜','Verbundene Konten','accounts'],['▦','Layout bearbeiten','layout'],['☁','Datensicherung herunterladen','backup'],['▤','Notizen','notes'],['◷','Erinnerungen','reminders'],['⚙','Einstellungen','settings'],['◴','Werkseinstellungen','reset'],['ⓘ','Guide / Einführung','guide']].map(x=>`<button class="menu-item" onclick="navigate('${x[2]}')"><span class="menu-icon">${x[0]}</span><span>${x[1]}</span><span class="chev">›</span></button>`).join('')}</div><div class="owner-footer">Lifestyle Finanzen<br>© 2026 Fabio Wedlich · Alle Rechte vorbehalten</div><div id="logoutSlot"></div>`}
 function genericPage(title,desc,body){return head(title,'',true)+`<section class="card">${desc?`<div class="card-title">${desc}</div>`:''}${body}</section>`}
 function splitHeader(full){
   const start=full.indexOf('<div class="topline">');
@@ -285,6 +282,10 @@ function render(){
   }
   document.getElementById('topline').innerHTML=top;
   document.getElementById('content').innerHTML=body;
+  const logout=document.getElementById('authLogout');
+  const logoutSlot=document.getElementById('logoutSlot');
+  if(logoutSlot && state.page==='more'){logoutSlot.appendChild(logout);logout.style.display=logout.hidden?'none':'block';}
+  else {logout.style.display='none';}
   document.getElementById('content').scrollTop=0;
 }
 function salaryInputValue(){return Number(state.monthlySalary)>0?String(state.monthlySalary).replace('.',','):''}
