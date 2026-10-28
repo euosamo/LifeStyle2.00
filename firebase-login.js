@@ -142,30 +142,32 @@ window.lifestyleDeleteAccount = async function () {
     }
   }
 };
+let cloudSaveQueue = Promise.resolve();
 window.lifestyleCloudSave = state => {
-  const snapshot = JSON.parse(JSON.stringify(state));
-  // Save locally immediately, so a reload cannot discard recent changes.
+  let snapshot;
+  try { snapshot = JSON.parse(JSON.stringify(state)); } catch (_) { return; }
+  let localSavedAt = Date.now();
+  // Persist locally synchronously before scheduling any network work.
   try {
     if (window.lifestyleUserStorageKey) {
       localStorage.setItem(window.lifestyleUserStorageKey, JSON.stringify(snapshot));
-      localStorage.setItem(window.lifestyleUserStorageKey + "-saved-at", String(Date.now()));
+      localStorage.setItem(window.lifestyleUserStorageKey + "-saved-at", String(localSavedAt));
     }
   } catch (_) {}
   if (!user || !db || !cloudReady || user.uid !== activeUid) return;
   const saveUser = user;
-  clearTimeout(timer);
-  timer = setTimeout(async () => {
+  cloudSaveQueue = cloudSaveQueue.catch(() => {}).then(async () => {
+    if (!cloudReady || !user || user.uid !== saveUser.uid || activeUid !== saveUser.uid) return;
     try {
-      if (!cloudReady || !user || user.uid !== saveUser.uid) return;
       await setDoc(ref(saveUser.uid), { state: snapshot, updatedAt: serverTimestamp() });
       if (user && user.uid === saveUser.uid) {
-        try { localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now())); } catch (_) {}
+        try { localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(localSavedAt)); } catch (_) {}
         msg("Änderungen synchronisiert.");
       }
     } catch (e) {
       msg(`Synchronisierung fehlgeschlagen (${e.code || "Fehler"}). Lokal auf diesem Gerät gespeichert; Cloud-Speicherung prüfen.`, true);
     }
-  }, 700);
+  });
 };
 window.lifestyleFlushCloudSave = async () => {
   clearTimeout(timer);
@@ -288,13 +290,18 @@ try {
       const localSavedAt = Number(localStorage.getItem(window.lifestyleUserStorageKey + "-saved-at")) || 0;
       const cloudUpdatedAt = snap.exists() && snap.data().updatedAt?.toMillis ? snap.data().updatedAt.toMillis() : 0;
       // Prefer a newer local snapshot if the browser was reloaded before the debounced cloud write completed.
-      const chosenState = localState && (!cloudState || localSavedAt > cloudUpdatedAt) ? localState : (cloudState || localState || null);
+      const useLocalState = !!localState && (!cloudState || localSavedAt > cloudUpdatedAt);
+      const chosenState = useLocalState ? localState : (cloudState || localState || null);
       if (typeof window.lifestyleApplyState !== "function" || typeof window.render !== "function") {
         throw new Error("App-Funktionen wurden nicht geladen.");
       }
       window.lifestyleApplyState(chosenState);
-      if (!snap.exists() && chosenState) {
-        await setDoc(ref(uid), { state: chosenState, updatedAt: serverTimestamp() });
+      // If local data is newer (or the cloud document is missing), repair Firebase from that exact snapshot.
+      if (chosenState && (!snap.exists() || useLocalState)) {
+        await setDoc(ref(uid), { state: JSON.parse(JSON.stringify(chosenState)), updatedAt: serverTimestamp() });
+        try {
+          localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now()));
+        } catch (_) {}
       }
       if (!user || user.uid !== uid) return;
       cloudReady = true;
