@@ -282,13 +282,20 @@ try {
     document.getElementById("authLogout").hidden = false;
     msg("Deine Finanzdaten werden geladen …");
     try {
-      const snap = await getDoc(ref(uid));
+      let loadTimedOut = false;
+      const snap = await Promise.race([
+        getDoc(ref(uid)),
+        new Promise(resolve => setTimeout(() => { loadTimedOut = true; resolve(null); }, 8000))
+      ]);
       if (!user || user.uid !== uid) return;
       const localRaw = localStorage.getItem(window.lifestyleUserStorageKey);
       const localState = localRaw ? JSON.parse(localRaw) : null;
-      const cloudState = snap.exists() ? snap.data().state : null;
+      if (loadTimedOut) {
+        msg("Die Cloud lädt gerade langsam. Deine lokal gespeicherten Daten werden angezeigt; die Synchronisierung wird später erneut benötigt.", true);
+      }
+      const cloudState = snap && snap.exists() ? snap.data().state : null;
       const localSavedAt = Number(localStorage.getItem(window.lifestyleUserStorageKey + "-saved-at")) || 0;
-      const cloudUpdatedAt = snap.exists() && snap.data().updatedAt?.toMillis ? snap.data().updatedAt.toMillis() : 0;
+      const cloudUpdatedAt = snap && snap.exists() && snap.data().updatedAt?.toMillis ? snap.data().updatedAt.toMillis() : 0;
       // Prefer a newer local snapshot if the browser was reloaded before the debounced cloud write completed.
       const useLocalState = !!localState && (!cloudState || localSavedAt > cloudUpdatedAt);
       const chosenState = useLocalState ? localState : (cloudState || localState || null);
@@ -297,7 +304,7 @@ try {
       }
       window.lifestyleApplyState(chosenState);
       // If local data is newer (or the cloud document is missing), repair Firebase from that exact snapshot.
-      if (chosenState && (!snap.exists() || useLocalState)) {
+      if (chosenState && !loadTimedOut && (!snap || !snap.exists() || useLocalState)) {
         await setDoc(ref(uid), { state: JSON.parse(JSON.stringify(chosenState)), updatedAt: serverTimestamp() });
         try {
           localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now()));
