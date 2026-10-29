@@ -305,17 +305,20 @@ try {
         throw new Error("App-Funktionen wurden nicht geladen.");
       }
       window.lifestyleApplyState(chosenState);
-      // If local data is newer (or the cloud document is missing), repair Firebase from that exact snapshot.
-      if (chosenState && !loadTimedOut && (!snap || !snap.exists() || useLocalState)) {
-        await setDoc(ref(uid), { state: JSON.parse(JSON.stringify(chosenState)), updatedAt: serverTimestamp() });
-        try {
-          localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now()));
-        } catch (_) {}
-      }
       if (!user || user.uid !== uid) return;
+      // Show the app as soon as the saved state is applied. A slow Firestore repair
+      // must never leave the user stuck on the loading screen.
       cloudReady = true;
       showApp();
       window.render();
+      // Repair Firebase in the background so a slow write cannot block login.
+      if (chosenState && !loadTimedOut && (!snap || !snap.exists() || useLocalState)) {
+        setDoc(ref(uid), { state: JSON.parse(JSON.stringify(chosenState)), updatedAt: serverTimestamp() })
+          .then(() => {
+            try { localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now())); } catch (_) {}
+          })
+          .catch(e => msg(`Cloud-Synchronisierung fehlgeschlagen (${e.code || "Fehler"}). Deine lokalen Daten bleiben erhalten.`, true));
+      }
       let newlyRegistered = false;
       try { newlyRegistered = localStorage.getItem("lifestyle-finanz-new-user-uid") === uid; } catch (_) {}
       if (newlyRegistered && !chosenState?.onboardingComplete && typeof window.showFirstStart === "function") {
