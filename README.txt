@@ -1,13 +1,17 @@
-LIFESTYLE FINANZEN – VERSION 4: iPhone-Layout
+LIFESTYLE FINANZEN – HAUPTVERSION
 
-Änderungen:
-- Safe-Area-Abstand oben: Überschriften werden nicht mehr von Dynamic Island/Statusleiste überlagert.
-- Bessere Mindestschriftgrößen und Zeilenumbrüche in allen Bereichen.
-- Karten, Eingabefelder und Navigation passen sich an schmale iPhone-Bildschirme an.
-- Untere Navigation berücksichtigt den iPhone-Sicherheitsbereich.
-- Service-Worker-Cache für die neue Version aktualisiert.
+Enthalten:
+- iPhone-optimiertes PWA-Layout mit unterer Navigation
+- Finanzübersicht, Buchungen, Auswertungen und Kategorien
+- Feste Ausgaben, einmalige Ausgaben, Raten & Verpflichtungen und Sparziele
+- Notizen, Erinnerungen, Layout-Einstellungen und Datensicherung
+- Firebase-Anmeldung und persönliche Cloud-Speicherung je Nutzer
+- Lokale Zwischenspeicherung und Übernahme älterer lokaler Daten beim ersten Login
 
-Veröffentlichen:
-Alle Dateien gemeinsam im Stammverzeichnis des GitHub-Repositories LifeStyle2.00 hochladen und alte Dateien ersetzen. Danach warten, bis GitHub Pages fertig ist. Auf dem iPhone die Website in Safari neu laden bzw. die installierte App vollständig schließen und neu öffnen.
+Veröffentlichung:
+Die Hauptversion liegt im Branch `main`. Nach einem GitHub-Commit muss die Veröffentlichung durch Cloudflare Pages bzw. den konfigurierten Hosting-Dienst erfolgreich abgeschlossen sein. Auf dem iPhone die installierte Web-App vollständig schließen und neu öffnen oder Safari neu laden, damit der neue Service-Worker aktiv wird.
 
-Hinweis: Die App speichert Daten lokal im Browser dieses Geräts. Vor Updates nach Möglichkeit „Datensicherung herunterladen“ verwenden.
+Wichtig:
+- Die Firestore-Regeln aus `firestore.rules` müssen separat in der Firebase Console veröffentlicht sein.
+- Vor produktiver Nutzung Anmeldung, Speichern, erneuten Login und getrennte Daten je Nutzer testen.
+- Vor Updates empfiehlt sich zusätzlich ein Export über „Datensicherung herunterladen“.
