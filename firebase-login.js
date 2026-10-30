@@ -105,7 +105,50 @@ document.getElementById("authLogout").addEventListener("click", async () => {
   }
 });
 
+
 const ref = uid => doc(db, "users", uid, "appData", "main");
+
+// Öffentlicher VAPID-Schlüssel. Wird nach dem Eintragen des erzeugten Schlüssels ersetzt.
+const LIFESTYLE_VAPID_PUBLIC_KEY = "REPLACE_WITH_VAPID_PUBLIC_KEY";
+function decodeVapidKey(value) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+  return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+}
+window.lifestyleSubscribeForPush = async function () {
+  if (!auth?.currentUser || !db || !cloudReady || auth.currentUser.uid !== activeUid) {
+    throw new Error("Bitte melde dich erneut an, bevor du Push aktivierst.");
+  }
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    throw new Error("Dieser Browser unterstützt keine Web-Push-Abonnements.");
+  }
+  if (LIFESTYLE_VAPID_PUBLIC_KEY.startsWith("REPLACE_")) {
+    throw new Error("Der öffentliche VAPID-Schlüssel ist noch nicht in der App hinterlegt.");
+  }
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: decodeVapidKey(LIFESTYLE_VAPID_PUBLIC_KEY)
+    });
+  }
+  const json = subscription.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    throw new Error("Der Browser hat kein vollständiges Push-Abonnement geliefert.");
+  }
+  const bytes = new TextEncoder().encode(json.endpoint);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const id = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
+  await setDoc(doc(db, "users", activeUid, "pushSubscriptions", id), {
+    subscription: json,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin",
+    userAgent: navigator.userAgent.slice(0, 180),
+    updatedAt: serverTimestamp()
+  });
+  return true;
+};
+
 
 window.lifestyleDeleteAccount = async function () {
   if (!auth || !db || !auth.currentUser) {
