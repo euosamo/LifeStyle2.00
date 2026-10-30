@@ -285,8 +285,12 @@ function render(){
   document.getElementById('content').innerHTML=body;
   const logout=document.getElementById('authLogout');
   const logoutSlot=document.getElementById('logoutSlot');
-  if(logoutSlot && state.page==='more'){logoutSlot.appendChild(logout);logout.style.display=logout.hidden?'none':'block';}
-  else {logout.style.display='none';}
+  if(logout && logoutSlot && state.page==='more'){
+    if(logout.parentElement!==logoutSlot) logoutSlot.appendChild(logout);
+    logout.style.display=logout.hidden?'none':'block';
+  } else if(logout) {
+    logout.style.display='none';
+  }
   document.getElementById('content').scrollTop=0;
 }
 function salaryInputValue(){return Number(state.monthlySalary)>0?String(state.monthlySalary).replace('.',','):''}
