@@ -7,4 +7,5 @@ compatibility_flags = ["nodejs_compat"]
 crons = ["* * * * *"]
 
 [vars]
+VAPID_PUBLIC_KEY = "BGkgIcW-ZisIhF1RcwBqdnmyOgtUcMYda9AhJyfO2J0-FKAsw04VMpO5TDjXRV-vRlu6gZWSE1Fp29WeIr-7PtE"
 VAPID_SUBJECT = "https://lifestyle2-00.pages.dev"
