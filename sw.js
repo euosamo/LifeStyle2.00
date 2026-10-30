@@ -1,5 +1,5 @@
-const CACHE_NAME = 'lifestyle-finanz-app-v6';
-const APP_FILES = ['./', './index.html', './firebase-login.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-ls.svg'];
+const CACHE_NAME = 'lifestyle-finanz-app-v7';
+const APP_FILES = ['./', './index.html', './firebase-login.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-ls.svg', './apple-touch-icon.png.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_FILES)));
