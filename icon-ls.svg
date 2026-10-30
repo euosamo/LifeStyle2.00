@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+ <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#00d9ff"/><stop offset=".48" stop-color="#2878ff"/><stop offset="1" stop-color="#e52bff"/></linearGradient>
+ <linearGradient id="letters" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#49eaff"/><stop offset=".48" stop-color="#328dff"/><stop offset="1" stop-color="#e84aff"/></linearGradient>
+ <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="13" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+</defs>
+<rect width="512" height="512" rx="112" fill="#030509"/>
+<rect x="13" y="13" width="486" height="486" rx="101" fill="none" stroke="url(#rim)" stroke-width="10" filter="url(#glow)" opacity=".95"/>
+<rect x="22" y="22" width="468" height="468" rx="94" fill="none" stroke="url(#rim)" stroke-width="3" opacity=".72"/>
+<g filter="url(#glow)">
+ <path d="M113 143h76l-39 218h112l-13 67H62z" fill="url(#letters)"/>
+ <path d="M381 143c-26-17-59-24-94-24-79 0-130 43-130 107 0 43 26 67 81 84l39 12c21 7 28 13 28 24 0 17-18 28-46 28-34 0-67-13-91-35l-42 57c33 30 78 46 130 46 85 0 141-43 141-111 0-43-26-68-82-86l-39-12c-21-7-28-13-28-24 0-14 15-23 39-23 25 0 49 8 70 23z" fill="url(#letters)" transform="translate(18 0)"/>
+ <path d="M276 202l-36 99h45l-19 91 91-129h-51l31-61z" fill="#f7fbff" opacity=".94"/>
+</g>
+</svg>
