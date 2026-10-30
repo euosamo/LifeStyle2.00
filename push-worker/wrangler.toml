@@ -1,0 +1,11 @@
+name = "lifestyle-push-worker"
+main = "src/index.js"
+compatibility_date = "2026-10-30"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+VAPID_PUBLIC_KEY = "REPLACE_WITH_VAPID_PUBLIC_KEY"
+VAPID_SUBJECT = "mailto:REPLACE_WITH_YOUR_EMAIL"
