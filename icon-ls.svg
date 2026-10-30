@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+ <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#00eaff"/><stop offset=".48" stop-color="#164fff"/><stop offset="1" stop-color="#d21dff"/></linearGradient>
+ <linearGradient id="ls" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#05f5ff"/><stop offset=".42" stop-color="#168dff"/><stop offset=".72" stop-color="#734cff"/><stop offset="1" stop-color="#ff39ed"/></linearGradient>
+ <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#071326"/><stop offset="1" stop-color="#01030a"/></linearGradient>
+</defs>
+<rect width="512" height="512" rx="112" fill="#02030a"/>
+<rect x="30" y="30" width="452" height="452" rx="100" fill="url(#shade)" stroke="url(#rim)" stroke-width="3"/>
+<rect x="36" y="36" width="440" height="440" rx="94" fill="none" stroke="#24305f" stroke-width="1"/>
+<g fill="url(#ls)" stroke="url(#ls)" stroke-linejoin="miter" filter="url(#glow)">
+ <path d="M104 331 L204 143 L253 143 L177 286 L259 286 L235 331 Z" stroke-width="2"/>
+ <path d="M234 267 L279 180 Q294 151 325 151 L420 151 L393 191 L321 191 Q310 191 304 203 L293 224 L338 224 L312 263 L271 263 L222 354 Z" stroke-width="2"/>
+ <path d="M329 224 L390 224 Q424 224 424 256 Q424 266 418 279 L397 313 Q386 331 361 331 L258 331 L286 293 L357 293 Q371 293 377 282 L383 270 Q388 258 372 258 L307 258 Z" stroke-width="2"/>
+</g>
+</svg>
