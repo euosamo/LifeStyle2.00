@@ -104,7 +104,8 @@ async function run(env) {
 export default {
   async scheduled(controller,env,ctx) { ctx.waitUntil(run(env).catch(e=>console.error("Scheduled push failed:",e))); },
   async fetch(request,env) {
-    if(new URL(request.url).pathname==="/health") return Response.json({ok:true,service:"Lifestyle Push Worker"});
-    return new Response("Not found",{status:404});
+    const path = new URL(request.url).pathname;
+    if(path === "/" || path === "/health") return Response.json({ok:true,service:"Lifestyle Push Worker",health:"online"});
+    return Response.json({ok:false,error:"Not found",path},{status:404});
   }
 };
