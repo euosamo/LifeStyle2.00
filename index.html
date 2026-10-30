@@ -281,6 +281,11 @@ function render(){
     else if(p==='guide') body=`<div class="card-title">Willkommen bei Lifestyle</div><p style="font-size:12px;line-height:1.7;color:#b4c5d8">Auf der Startseite siehst du den Monatsüberblick und deine wichtigsten Bereiche. Unter „Buchungen“ kannst du Einnahmen und Ausgaben suchen und filtern. „Auswertung“ vergleicht Ausgaben und Kategorien. Unter „Mehr“ verwaltest du Kategorien, verbundene Konten, Layout, Datensicherung, Notizen und Einstellungen.</p><p style="font-size:12px;line-height:1.7;color:#b4c5d8"><b>Raten & Verpflichtungen:</b> Hier sammelst du Kredite, Ratenzahlungen und andere offene Verpflichtungen getrennt von den festen Ausgaben. <b>Sparziele:</b> Hier verfolgst du deine Sparfortschritte. Es werden keine Beispielbeträge vorausgefüllt. Deine Angaben werden erst angezeigt, wenn du sie selbst eingetragen hast; eine echte Bankverbindung besteht nicht.</p><button class="primary" onclick="navigate('home')">Alles klar</button>`;
     else body=`<div class="empty">Dieser Bereich ist noch nicht verfügbar.</div>`;
   }
+  // Keep the original logout button outside the replaceable content before rerendering.
+  const existingLogout=document.getElementById('authLogout');
+  if(existingLogout && existingLogout.parentElement && existingLogout.parentElement.closest('#content')){
+    document.body.appendChild(existingLogout);
+  }
   document.getElementById('topline').innerHTML=top;
   document.getElementById('content').innerHTML=body;
   const logout=document.getElementById('authLogout');
