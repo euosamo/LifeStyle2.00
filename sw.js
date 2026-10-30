@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifestyle-finanz-app-v8';
+const CACHE_NAME = 'lifestyle-finanz-app-v9';
 const APP_FILES = ['./', './index.html', './firebase-login.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-ls.svg'];
 
 self.addEventListener('install', event => {
