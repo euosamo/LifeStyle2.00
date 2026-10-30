@@ -7,5 +7,4 @@ compatibility_flags = ["nodejs_compat"]
 crons = ["* * * * *"]
 
 [vars]
-VAPID_PUBLIC_KEY = "REPLACE_WITH_VAPID_PUBLIC_KEY"
-VAPID_SUBJECT = "mailto:REPLACE_WITH_YOUR_EMAIL"
+VAPID_SUBJECT = "https://lifestyle2-00.pages.dev"
