@@ -346,9 +346,6 @@ try {
       if (!user || user.uid !== uid) return;
       const localRaw = localStorage.getItem(window.lifestyleUserStorageKey);
       const localState = localRaw ? JSON.parse(localRaw) : null;
-      if (loadTimedOut) {
-        msg("Die Cloud lädt gerade langsam. Deine lokal gespeicherten Daten werden angezeigt; die Synchronisierung wird später erneut benötigt.", true);
-      }
       const cloudState = snap.exists() ? snap.data().state : null;
       if (snap.exists() && (!cloudState || typeof cloudState !== "object" || Array.isArray(cloudState))) {
         throw new Error("Der gespeicherte Cloud-Datenstand ist ungültig. Zum Schutz deiner Daten wurde das Laden gestoppt.");
@@ -365,7 +362,6 @@ try {
       } catch (_) {}
       // An existing Firestore document always wins. Local data is only used to
       // initialize a genuinely missing cloud document (or one-time legacy import).
-      const useLocalState = !snap.exists() && !!localState;
       const chosenState = cloudState || localState || legacyState || null;
       if (legacyImport && chosenState === legacyState) {
         try {
@@ -378,8 +374,7 @@ try {
       }
       window.lifestyleApplyState(chosenState);
       if (!user || user.uid !== uid) return;
-      // Show the app as soon as the saved state is applied. A slow Firestore repair
-      // must never leave the user stuck on the loading screen.
+      // Reveal the app only after the verified cloud/local initialization is complete.
       cloudReady = true;
       window.lifestyleCloudReady = true;
       showApp();
