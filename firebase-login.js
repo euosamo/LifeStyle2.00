@@ -381,7 +381,7 @@ try {
       cloudReady = true;
       showApp();
       window.render();
-      // Repair Firebase in the background so a slow write cannot block login.
+      // Bei normaler Ladezeit fehlende oder ältere Cloud-Daten reparieren.
       if (chosenState && !loadTimedOut && (!snap || !snap.exists() || useLocalState)) {
         setDoc(ref(uid), { state: JSON.parse(JSON.stringify(chosenState)), updatedAt: serverTimestamp() })
           .then(() => {
@@ -391,6 +391,42 @@ try {
             } catch (_) {}
           })
           .catch(e => msg(`Cloud-Synchronisierung fehlgeschlagen (${e.code || "Fehler"}). Deine lokalen Daten bleiben erhalten.`, true));
+      }
+      // Timeout: Nach dem Anzeigen der App erneut die Cloud abfragen.
+      // Niemals einen lokalen Stand hochladen, bevor der verspätete Cloud-Stand geprüft wurde.
+      if (loadTimedOut) {
+        (async () => {
+          try {
+            const retrySnap = await getDoc(ref(uid));
+            if (!user || user.uid !== uid || activeUid !== uid) return;
+            const retryCloudState = retrySnap.exists() ? retrySnap.data().state : null;
+            const retryCloudTime = retrySnap.exists() && retrySnap.data().updatedAt?.toMillis
+              ? retrySnap.data().updatedAt.toMillis() : 0;
+            const latestLocalRaw = localStorage.getItem(window.lifestyleUserStorageKey);
+            const latestLocalState = latestLocalRaw ? JSON.parse(latestLocalRaw) : null;
+            const latestLocalTime = Number(localStorage.getItem(window.lifestyleUserStorageKey + "-saved-at")) || 0;
+            if (retryCloudState && (!latestLocalState || retryCloudTime > latestLocalTime)) {
+              window.lifestyleApplyState(retryCloudState);
+              window.render();
+              try {
+                localStorage.setItem(window.lifestyleUserStorageKey, JSON.stringify(retryCloudState));
+                localStorage.setItem(window.lifestyleUserStorageKey + "-saved-at", String(retryCloudTime || Date.now()));
+              } catch (_) {}
+              msg("Cloud-Daten wurden nachgeladen und synchronisiert.");
+            } else if (latestLocalState && (!retryCloudState || latestLocalTime >= retryCloudTime)) {
+              await setDoc(ref(uid), { state: JSON.parse(JSON.stringify(latestLocalState)), updatedAt: serverTimestamp() });
+              if (!user || user.uid !== uid || activeUid !== uid) return;
+              try { localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now())); } catch (_) {}
+              msg("Deine lokalen Daten wurden nachträglich in der Cloud gespeichert.");
+            } else {
+              msg("Cloud-Synchronisierung ist aktuell. Bitte Seite neu laden.");
+            }
+          } catch (e) {
+            if (user && user.uid === uid && activeUid === uid) {
+              msg(`Erneuter Cloud-Abgleich fehlgeschlagen (${e.code || "Fehler"}). Lokale Daten bleiben erhalten.`, true);
+            }
+          }
+        })();
       }
       let newlyRegistered = false;
       try { newlyRegistered = localStorage.getItem("lifestyle-finanz-new-user-uid") === uid; } catch (_) {}
