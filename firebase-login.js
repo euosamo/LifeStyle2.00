@@ -116,21 +116,20 @@ function decodeVapidKey(value) {
   return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
 }
 window.lifestyleSubscribeForPush = async function () {
-  // iOS PWA can restore Firebase persistence a moment after the page UI appears.
-  // Wait briefly for the existing auth-state handler and Firestore load to finish.
+  // Push registration needs the signed-in Firebase user and Firestore client,
+  // but it must not wait for the separate financial-data download to finish.
   const readyUntil = Date.now() + 12000;
-  while (Date.now() < readyUntil) {
-    const current = auth?.currentUser;
-    if (current && db && cloudReady && current.uid === activeUid && current.emailVerified) break;
+  while (Date.now() < readyUntil && !auth?.currentUser) {
     await new Promise(resolve => setTimeout(resolve, 200));
   }
   const currentUser = auth?.currentUser;
   if (!currentUser || !currentUser.emailVerified) {
     throw new Error("Deine Firebase-Anmeldung wurde auf diesem iPhone nicht wiederhergestellt. Bitte melde dich in Lifestyle einmal neu an.");
   }
-  if (!db || !cloudReady || currentUser.uid !== activeUid) {
-    throw new Error("Deine Finanzdaten werden noch geladen. Bitte warte kurz und tippe erneut auf Aktivieren.");
+  if (!db) {
+    throw new Error("Die Firebase-Datenbank ist noch nicht bereit. Bitte öffne Lifestyle erneut und versuche es noch einmal.");
   }
+  const pushUid = currentUser.uid;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     throw new Error("Dieser Browser unterstützt keine Web-Push-Abonnements.");
   }
@@ -152,7 +151,7 @@ window.lifestyleSubscribeForPush = async function () {
   const bytes = new TextEncoder().encode(json.endpoint);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const id = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
-  await setDoc(doc(db, "users", activeUid, "pushSubscriptions", id), {
+  await setDoc(doc(db, "users", pushUid, "pushSubscriptions", id), {
     subscription: json,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin",
     userAgent: navigator.userAgent.slice(0, 180),
