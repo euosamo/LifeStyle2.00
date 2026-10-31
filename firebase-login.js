@@ -116,8 +116,20 @@ function decodeVapidKey(value) {
   return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
 }
 window.lifestyleSubscribeForPush = async function () {
-  if (!auth?.currentUser || !db || !cloudReady || auth.currentUser.uid !== activeUid) {
-    throw new Error("Bitte melde dich erneut an, bevor du Push aktivierst.");
+  // iOS PWA can restore Firebase persistence a moment after the page UI appears.
+  // Wait briefly for the existing auth-state handler and Firestore load to finish.
+  const readyUntil = Date.now() + 12000;
+  while (Date.now() < readyUntil) {
+    const current = auth?.currentUser;
+    if (current && db && cloudReady && current.uid === activeUid && current.emailVerified) break;
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  const currentUser = auth?.currentUser;
+  if (!currentUser || !currentUser.emailVerified) {
+    throw new Error("Deine Firebase-Anmeldung wurde auf diesem iPhone nicht wiederhergestellt. Bitte melde dich in Lifestyle einmal neu an.");
+  }
+  if (!db || !cloudReady || currentUser.uid !== activeUid) {
+    throw new Error("Deine Finanzdaten werden noch geladen. Bitte warte kurz und tippe erneut auf Aktivieren.");
   }
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     throw new Error("Dieser Browser unterstützt keine Web-Push-Abonnements.");
