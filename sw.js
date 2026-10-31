@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifestyle-finanz-app-v9';
+const CACHE_NAME = 'lifestyle-finanz-app-v10';
 const APP_FILES = ['./', './index.html', './firebase-login.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-ls.svg', './apple-touch-icon.png.png'];
 
 self.addEventListener('install', event => {
@@ -20,6 +20,14 @@ self.addEventListener('fetch', event => {
       if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put('./index.html', response.clone()));
       return response;
     }).catch(() => caches.match('./index.html')));
+    return;
+  }
+  const isAppModule = new URL(event.request.url).pathname.endsWith('/firebase-login.js');
+  if (isAppModule) {
+    event.respondWith(fetch(event.request).then(response => {
+      if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
+      return response;
+    }).catch(() => caches.match(event.request)));
     return;
   }
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
