@@ -420,17 +420,7 @@ try {
       window.lifestyleCloudReady = true;
       showApp();
       window.render();
-      // Create a cloud record only if Firestore confirmed that no record existed.
-      if (chosenState && (!snap.exists() || pending)) {
-        writeCloudSnapshot(user, JSON.parse(JSON.stringify(chosenState)))
-          .then(() => {
-            try {
-              localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now()));
-              if (legacyImport && chosenState === legacyState) localStorage.setItem("lifestyle-finanz-legacy-imported", uid);
-            } catch (_) {}
-          })
-          .catch(e => { cloudReady = false; window.lifestyleCloudReady = false; appRoot.hidden = true; gate.hidden = false; msg(e.message || "Cloud-Synchronisierung fehlgeschlagen. Daten wurden nicht überschrieben.", true); });
-      }
+      // render() below queues the initial snapshot through the same revision-checked save path.
       let newlyRegistered = false;
       try { newlyRegistered = localStorage.getItem("lifestyle-finanz-new-user-uid") === uid; } catch (_) {}
       if (newlyRegistered && !chosenState?.onboardingComplete && typeof window.showFirstStart === "function") {
