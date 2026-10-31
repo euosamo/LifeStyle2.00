@@ -15,6 +15,7 @@ const appRoot = document.getElementById("app");
 const message = document.getElementById("authMessage");
 let mode = "login", user = null, db = null, auth = null, cloudReady = false, timer = null;
 let activeUid = null;
+window.lifestyleCloudReady = false;
 
 function msg(text, error = false) {
   if (!message) return;
@@ -303,6 +304,7 @@ try {
   onAuthStateChanged(auth, async nextUser => {
     clearTimeout(timer);
     cloudReady = false;
+    window.lifestyleCloudReady = false;
     user = nextUser;
     if (!user) {
       const verify = document.getElementById("verifyEmailActions");
@@ -338,20 +340,19 @@ try {
     document.getElementById("authLogout").hidden = false;
     msg("Deine Finanzdaten werden geladen …");
     try {
-      let loadTimedOut = false;
-      const snap = await Promise.race([
-        getDoc(ref(uid)),
-        new Promise(resolve => setTimeout(() => { loadTimedOut = true; resolve(null); }, 8000))
-      ]);
+      // Cloud is authoritative. Never continue with defaults or local data merely
+      // because a device/network is slow: wait for Firestore or fail closed.
+      const snap = await getDoc(ref(uid));
       if (!user || user.uid !== uid) return;
       const localRaw = localStorage.getItem(window.lifestyleUserStorageKey);
       const localState = localRaw ? JSON.parse(localRaw) : null;
       if (loadTimedOut) {
         msg("Die Cloud lädt gerade langsam. Deine lokal gespeicherten Daten werden angezeigt; die Synchronisierung wird später erneut benötigt.", true);
       }
-      const cloudState = snap && snap.exists() ? snap.data().state : null;
-      const localSavedAt = Number(localStorage.getItem(window.lifestyleUserStorageKey + "-saved-at")) || 0;
-      const cloudUpdatedAt = snap && snap.exists() && snap.data().updatedAt?.toMillis ? snap.data().updatedAt.toMillis() : 0;
+      const cloudState = snap.exists() ? snap.data().state : null;
+      if (snap.exists() && (!cloudState || typeof cloudState !== "object" || Array.isArray(cloudState))) {
+        throw new Error("Der gespeicherte Cloud-Datenstand ist ungültig. Zum Schutz deiner Daten wurde das Laden gestoppt.");
+      }
       // Import legacy data from the previous main version once, only when this account has no saved data.
       let legacyState = null;
       let legacyImport = false;
@@ -362,9 +363,10 @@ try {
           if (legacyRaw) { legacyState = JSON.parse(legacyRaw); legacyImport = !!legacyState && typeof legacyState === "object"; }
         }
       } catch (_) {}
-      // Prefer a newer local snapshot if the browser was reloaded before the debounced cloud write completed.
-      const useLocalState = !!localState && (!cloudState || localSavedAt > cloudUpdatedAt);
-      const chosenState = useLocalState ? localState : (cloudState || localState || legacyState || null);
+      // An existing Firestore document always wins. Local data is only used to
+      // initialize a genuinely missing cloud document (or one-time legacy import).
+      const useLocalState = !snap.exists() && !!localState;
+      const chosenState = cloudState || localState || legacyState || null;
       if (legacyImport && chosenState === legacyState) {
         try {
           localStorage.setItem(window.lifestyleUserStorageKey, JSON.stringify(legacyState));
@@ -379,10 +381,11 @@ try {
       // Show the app as soon as the saved state is applied. A slow Firestore repair
       // must never leave the user stuck on the loading screen.
       cloudReady = true;
+      window.lifestyleCloudReady = true;
       showApp();
       window.render();
-      // Bei normaler Ladezeit fehlende oder ältere Cloud-Daten reparieren.
-      if (chosenState && !loadTimedOut && (!snap || !snap.exists() || useLocalState)) {
+      // Create a cloud record only if Firestore confirmed that no record existed.
+      if (chosenState && !snap.exists()) {
         setDoc(ref(uid), { state: JSON.parse(JSON.stringify(chosenState)), updatedAt: serverTimestamp() })
           .then(() => {
             try {
@@ -391,42 +394,6 @@ try {
             } catch (_) {}
           })
           .catch(e => msg(`Cloud-Synchronisierung fehlgeschlagen (${e.code || "Fehler"}). Deine lokalen Daten bleiben erhalten.`, true));
-      }
-      // Timeout: Nach dem Anzeigen der App erneut die Cloud abfragen.
-      // Niemals einen lokalen Stand hochladen, bevor der verspätete Cloud-Stand geprüft wurde.
-      if (loadTimedOut) {
-        (async () => {
-          try {
-            const retrySnap = await getDoc(ref(uid));
-            if (!user || user.uid !== uid || activeUid !== uid) return;
-            const retryCloudState = retrySnap.exists() ? retrySnap.data().state : null;
-            const retryCloudTime = retrySnap.exists() && retrySnap.data().updatedAt?.toMillis
-              ? retrySnap.data().updatedAt.toMillis() : 0;
-            const latestLocalRaw = localStorage.getItem(window.lifestyleUserStorageKey);
-            const latestLocalState = latestLocalRaw ? JSON.parse(latestLocalRaw) : null;
-            const latestLocalTime = Number(localStorage.getItem(window.lifestyleUserStorageKey + "-saved-at")) || 0;
-            if (retryCloudState && (!latestLocalState || retryCloudTime > latestLocalTime)) {
-              window.lifestyleApplyState(retryCloudState);
-              window.render();
-              try {
-                localStorage.setItem(window.lifestyleUserStorageKey, JSON.stringify(retryCloudState));
-                localStorage.setItem(window.lifestyleUserStorageKey + "-saved-at", String(retryCloudTime || Date.now()));
-              } catch (_) {}
-              msg("Cloud-Daten wurden nachgeladen und synchronisiert.");
-            } else if (latestLocalState && (!retryCloudState || latestLocalTime >= retryCloudTime)) {
-              await setDoc(ref(uid), { state: JSON.parse(JSON.stringify(latestLocalState)), updatedAt: serverTimestamp() });
-              if (!user || user.uid !== uid || activeUid !== uid) return;
-              try { localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now())); } catch (_) {}
-              msg("Deine lokalen Daten wurden nachträglich in der Cloud gespeichert.");
-            } else {
-              msg("Cloud-Synchronisierung ist aktuell. Bitte Seite neu laden.");
-            }
-          } catch (e) {
-            if (user && user.uid === uid && activeUid === uid) {
-              msg(`Erneuter Cloud-Abgleich fehlgeschlagen (${e.code || "Fehler"}). Lokale Daten bleiben erhalten.`, true);
-            }
-          }
-        })();
       }
       let newlyRegistered = false;
       try { newlyRegistered = localStorage.getItem("lifestyle-finanz-new-user-uid") === uid; } catch (_) {}
@@ -440,6 +407,7 @@ try {
       msg("");
     } catch (e) {
       cloudReady = false;
+      window.lifestyleCloudReady = false;
       msg(`Anmeldung war erfolgreich, aber Finanzdaten konnten nicht geladen werden (${e.code || e.message || "Fehler"}). Firestore-Regeln und Datenbank prüfen.`, true);
     }
   }, e => {
