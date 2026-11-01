@@ -397,7 +397,8 @@ try {
     pendingSaveKey = window.lifestyleUserStorageKey + "-pending-cloud-save";
     gate.hidden = false;
     appRoot.hidden = true;
-    document.getElementById("authLogout").hidden = false;
+    // Keep logout hidden while the login gate is still visible and cloud data loads.
+    document.getElementById("authLogout").hidden = true;
     msg("Deine Finanzdaten werden geladen …");
     try {
       // Cloud is authoritative. Never continue with defaults or local data merely
@@ -443,6 +444,7 @@ try {
       cloudReady = true;
       window.lifestyleCloudReady = true;
       showApp();
+      document.getElementById("authLogout").hidden = false;
       window.render();
       // render() below queues the initial snapshot through the same revision-checked save path.
       let newlyRegistered = false;
