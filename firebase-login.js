@@ -46,7 +46,8 @@ function authError(e) {
     "auth/operation-not-allowed": "E-Mail/Passwort-Anmeldung ist in Firebase nicht aktiviert.",
     "auth/unauthorized-domain": "Diese Website ist in Firebase nicht als erlaubte Domain eingetragen.",
     "auth/configuration-not-found": "Die Firebase-Authentifizierung ist nicht vollständig eingerichtet.",
-    "auth/too-many-requests": "Zu viele Versuche. Bitte später erneut probieren."
+    "auth/too-many-requests": "Zu viele Versuche. Bitte später erneut probieren.",
+    "auth/timeout": "Die Anmeldung dauert ungewöhnlich lange. Bitte Internetverbindung prüfen und erneut versuchen."
   };
   return errors[e.code] || `Anmeldung fehlgeschlagen (${e.code || e.message || "unbekannter Fehler"}).`;
 }
@@ -75,7 +76,13 @@ document.getElementById("authForm").addEventListener("submit", async e => {
       await sendEmailVerification(credential.user);
       msg("Bestätigungs-E-Mail wurde angefordert. Bitte öffne dein E-Mail-Postfach und bestätige die Adresse, bevor du Lifestyle nutzt.");
     } else {
-      await signInWithEmailAndPassword(auth, email, password);
+      await Promise.race([
+        signInWithEmailAndPassword(auth, email, password),
+        new Promise((_, reject) => setTimeout(() => reject(Object.assign(
+          new Error("Die Anmeldung dauert ungewöhnlich lange. Bitte Internetverbindung prüfen und erneut versuchen."),
+          { code: "auth/timeout" }
+        )), 15000))
+      ]);
     }
   } catch (e) {
     msg(authError(e), true);
@@ -337,9 +344,17 @@ try {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
-  // Keep the signed-in session across normal page reloads, including iOS Safari/PWA.
-  try { await setPersistence(auth, indexedDBLocalPersistence); }
-  catch (_) { await setPersistence(auth, browserLocalPersistence); }
+  // Prefer Safari's localStorage persistence on iPhone. IndexedDB persistence can
+  // stall during startup in some installed iOS PWAs, preventing the auth listener
+  // from ever being registered and leaving the login screen on "Anmeldung läuft".
+  try {
+    await Promise.race([
+      setPersistence(auth, browserLocalPersistence),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("auth-persistence-timeout")), 5000))
+    ]);
+  } catch (_) {
+    // Continue with Firebase's available default persistence rather than blocking login.
+  }
   onAuthStateChanged(auth, async nextUser => {
     const loadGeneration = ++authLoadGeneration;
     clearTimeout(timer);
