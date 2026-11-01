@@ -15,6 +15,7 @@ const appRoot = document.getElementById("app");
 const message = document.getElementById("authMessage");
 let mode = "login", user = null, db = null, auth = null, cloudReady = false, timer = null;
 let activeUid = null;
+let authLoadGeneration = 0;
 let cloudRevision = 0;
 let pendingSaveKey = null;
 window.lifestyleCloudReady = false;
@@ -244,6 +245,13 @@ window.lifestyleCloudSave = state => {
   cloudSaveQueue = cloudSaveQueue.catch(() => {}).then(async () => {
     if (!cloudReady || !user || user.uid !== saveUser.uid || activeUid !== saveUser.uid) return;
     try {
+      // A previous queued write may have advanced cloudRevision after this
+      // snapshot was enqueued. Persist the actual base revision immediately
+      // before attempting this write, so a later reload does not report a
+      // false conflict for our own sequential saves.
+      if (pendingSaveKey) {
+        localStorage.setItem(pendingSaveKey, JSON.stringify({ state: snapshot, savedAt, baseRevision: cloudRevision }));
+      }
       await writeCloudSnapshot(saveUser, snapshot);
       msg("Änderungen synchronisiert.");
     } catch (e) {
@@ -333,6 +341,7 @@ try {
   try { await setPersistence(auth, indexedDBLocalPersistence); }
   catch (_) { await setPersistence(auth, browserLocalPersistence); }
   onAuthStateChanged(auth, async nextUser => {
+    const loadGeneration = ++authLoadGeneration;
     clearTimeout(timer);
     cloudReady = false;
     window.lifestyleCloudReady = false;
@@ -379,7 +388,7 @@ try {
       // Cloud is authoritative. Never continue with defaults or local data merely
       // because a device/network is slow: wait for Firestore or fail closed.
       const snap = await getDoc(ref(uid));
-      if (!user || user.uid !== uid) return;
+      if (loadGeneration !== authLoadGeneration || !user || user.uid !== uid) return;
       const localRaw = localStorage.getItem(window.lifestyleUserStorageKey);
       const localState = localRaw ? JSON.parse(localRaw) : null;
       cloudRevision = snap.exists() ? Number(snap.data().revision || 0) : 0;
@@ -414,7 +423,7 @@ try {
         throw new Error("App-Funktionen wurden nicht geladen.");
       }
       window.lifestyleApplyState(chosenState);
-      if (!user || user.uid !== uid) return;
+      if (loadGeneration !== authLoadGeneration || !user || user.uid !== uid) return;
       // Reveal the app only after the verified cloud/local initialization is complete.
       cloudReady = true;
       window.lifestyleCloudReady = true;
