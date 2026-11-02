@@ -475,6 +475,11 @@ try {
       // Reveal the app only after the verified cloud/local initialization is complete.
       cloudReady = true;
       window.lifestyleCloudReady = true;
+      // If this account has no Firestore document yet, explicitly seed it from the
+      // already-selected initial state. Existing cloud documents are never replaced here.
+      if (!snap.exists()) {
+        await writeCloudSnapshot(user, chosenState || {});
+      }
       lastCloudState = cloneState(cloudState || chosenState || {});
       showApp();
       window.render();
