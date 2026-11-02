@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, browserLocalPersistence, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBsklHgKgsiwEmY_PhmLxhYTdiGlbXpCqc",
@@ -16,6 +16,8 @@ const message = document.getElementById("authMessage");
 let mode = "login", user = null, db = null, auth = null, cloudReady = false, timer = null;
 let activeUid = null;
 let cloudRevision = 0;
+let cloudUnsubscribe = null;
+let lastCloudState = null;
 let pendingSaveKey = null;
 window.lifestyleCloudReady = false;
 
@@ -94,17 +96,21 @@ document.getElementById("authForgot").addEventListener("click", async () => {
   }
 });
 document.getElementById("authLogout").addEventListener("click", async () => {
-  if (auth) {
-    const button = document.getElementById("authLogout");
-    button.disabled = true;
+  if (!auth) return;
+  const button = document.getElementById("authLogout");
+  button.disabled = true;
+  try {
     try {
       if (typeof window.lifestyleFlushCloudSave === "function") await window.lifestyleFlushCloudSave();
-      await signOut(auth);
-    } catch (e) {
-      msg("Abmeldung abgebrochen, damit deine Daten nicht verloren gehen. Bitte Verbindung prüfen und erneut versuchen.", true);
-    } finally {
-      button.disabled = false;
+    } catch (saveError) {
+      // The pending snapshot is retained locally; a sync conflict must never trap the user in the session.
+      msg("Abmeldung erfolgt. Eine Änderung konnte noch nicht synchronisiert werden und bleibt auf diesem Gerät zur Wiederherstellung gespeichert.", true);
     }
+    await signOut(auth);
+  } catch (e) {
+    msg("Abmeldung fehlgeschlagen (" + (e.code || e.message || "Fehler") + "). Bitte erneut versuchen.", true);
+  } finally {
+    button.disabled = false;
   }
 });
 
@@ -181,8 +187,10 @@ window.lifestyleDeleteAccount = async function () {
     msg("Konto wird sicherheitshalber geprüft …");
     await reauthenticateWithCredential(current, EmailAuthProvider.credential(current.email, password));
     clearTimeout(timer);
+    if (cloudUnsubscribe) { cloudUnsubscribe(); cloudUnsubscribe = null; }
     cloudReady = false;
     activeUid = null;
+    lastCloudState = null;
     cloudRevision = 0;
     msg("Gespeicherte Finanzdaten werden gelöscht …");
     await deleteDoc(ref(current.uid));
@@ -219,6 +227,7 @@ async function writeCloudSnapshot(saveUser, snapshot) {
     });
   });
   cloudRevision = expectedRevision + 1;
+  lastCloudState = cloneState(snapshot);
   try {
     localStorage.removeItem(pendingSaveKey);
     localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now()));
@@ -270,6 +279,41 @@ window.lifestyleFlushCloudSave = async () => {
   }
 };
 
+function cloneState(value) { return value && typeof value === "object" ? JSON.parse(JSON.stringify(value)) : {}; }
+function mergeDeviceAndCloud(base, local, remote) {
+  const merged = {}, conflicts = [];
+  const keys = new Set([...Object.keys(base || {}), ...Object.keys(local || {}), ...Object.keys(remote || {})]);
+  for (const key of keys) {
+    const b = JSON.stringify((base || {})[key]);
+    const l = JSON.stringify((local || {})[key]);
+    const r = JSON.stringify((remote || {})[key]);
+    const localChanged = l !== b, remoteChanged = r !== b;
+    if (localChanged && remoteChanged && l !== r) { conflicts.push(key); merged[key] = (remote || {})[key]; }
+    else if (localChanged) merged[key] = (local || {})[key];
+    else merged[key] = (remote || {})[key];
+  }
+  return { state: merged, conflicts };
+}
+function startCloudRealtimeSync(uid) {
+  if (cloudUnsubscribe) cloudUnsubscribe();
+  cloudUnsubscribe = onSnapshot(ref(uid), snap => {
+    if (!cloudReady || activeUid !== uid || !user || user.uid !== uid || !snap.exists()) return;
+    const data = snap.data(), revision = Number(data.revision || 0), remote = data.state;
+    if (!remote || typeof remote !== "object" || Array.isArray(remote) || revision <= cloudRevision) return;
+    const local = typeof window.lifestyleGetState === "function" ? cloneState(window.lifestyleGetState()) : {};
+    const merged = mergeDeviceAndCloud(lastCloudState || {}, local, remote);
+    cloudRevision = revision;
+    lastCloudState = cloneState(remote);
+    if (merged.conflicts.length) {
+      try { localStorage.setItem(window.lifestyleUserStorageKey + "-sync-conflict-" + Date.now(), JSON.stringify({ local, remote, fields: merged.conflicts, savedAt: Date.now() })); } catch (_) {}
+    }
+    if (typeof window.lifestyleApplyState === "function") window.lifestyleApplyState(merged.state);
+    if (merged.conflicts.length) msg("Neue Änderungen wurden geladen. Bei gleichzeitig bearbeiteten Bereichen wurde eine lokale Sicherung angelegt: " + merged.conflicts.join(", "), true);
+    else msg("Änderungen von deinem anderen Gerät wurden übernommen.");
+  }, error => {
+    msg("Live-Synchronisierung unterbrochen (" + (error.code || "Verbindungsfehler") + "). Deine lokalen Änderungen bleiben erhalten.", true);
+  });
+}
 function showApp() {
   gate.hidden = true;
   appRoot.hidden = false;
@@ -333,8 +377,10 @@ try {
   db = getFirestore(app);
   onAuthStateChanged(auth, async nextUser => {
     clearTimeout(timer);
+    if (cloudUnsubscribe) { cloudUnsubscribe(); cloudUnsubscribe = null; }
     cloudReady = false;
     window.lifestyleCloudReady = false;
+    lastCloudState = null;
     user = nextUser;
     if (!user) {
       const verify = document.getElementById("verifyEmailActions");
@@ -413,7 +459,8 @@ try {
       } catch (_) {}
       // An existing Firestore document always wins. Local data is only used to
       // initialize a genuinely missing cloud document (or one-time legacy import).
-      const chosenState = cloudState || (pending && pending.state) || localState || legacyState || null;
+      const pendingMatchesCloud = !!(pending && Number(pending.baseRevision) === cloudRevision);
+      const chosenState = (pendingMatchesCloud ? pending.state : null) || cloudState || (pending && pending.state) || localState || legacyState || null;
       if (legacyImport && chosenState === legacyState) {
         try {
           localStorage.setItem(window.lifestyleUserStorageKey, JSON.stringify(legacyState));
@@ -428,8 +475,10 @@ try {
       // Reveal the app only after the verified cloud/local initialization is complete.
       cloudReady = true;
       window.lifestyleCloudReady = true;
+      lastCloudState = cloneState(cloudState || chosenState || {});
       showApp();
       window.render();
+      startCloudRealtimeSync(uid);
       // render() below queues the initial snapshot through the same revision-checked save path.
       let newlyRegistered = false;
       try { newlyRegistered = localStorage.getItem("lifestyle-finanz-new-user-uid") === uid; } catch (_) {}
