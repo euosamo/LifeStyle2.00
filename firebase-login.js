@@ -385,8 +385,19 @@ try {
       const pendingRaw = localStorage.getItem(pendingSaveKey);
       const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
       if (pending && (!pending.state || typeof pending.state !== "object" || Array.isArray(pending.state))) throw new Error("Ausstehender lokaler Speicherstand ist ungültig. Er wurde nicht überschrieben.");
-      if (pending && Number(pending.baseRevision) !== cloudRevision) throw new Error("Auf diesem Gerät liegen noch nicht synchronisierte Änderungen vor, während die Cloud auf einem anderen Stand ist. Zum Schutz vor Datenverlust wurde die App gesperrt. Bitte Änderungen erst abgleichen.");
       const cloudState = snap.exists() ? snap.data().state : null;
+      // A revision mismatch must not lock the user out. Preserve the pending
+      // snapshot under a separate recovery key, then use the cloud as authority
+      // when it exists. If no cloud document exists, retain the pending snapshot.
+      if (pending && Number(pending.baseRevision) !== cloudRevision) {
+        try {
+          const backupKey = pendingSaveKey + "-conflict-backup-" + Date.now();
+          localStorage.setItem(backupKey, pendingRaw);
+          localStorage.removeItem(pendingSaveKey);
+        } catch (backupError) {
+          throw new Error("Der lokale Zwischenstand konnte nicht sicher gesichert werden. Bitte Gerätespeicher prüfen; es wurde nichts überschrieben.");
+        }
+      }
       if (snap.exists() && (!cloudState || typeof cloudState !== "object" || Array.isArray(cloudState))) {
         throw new Error("Der gespeicherte Cloud-Datenstand ist ungültig. Zum Schutz deiner Daten wurde das Laden gestoppt.");
       }
@@ -402,7 +413,7 @@ try {
       } catch (_) {}
       // An existing Firestore document always wins. Local data is only used to
       // initialize a genuinely missing cloud document (or one-time legacy import).
-      const chosenState = (pending && pending.state) || cloudState || localState || legacyState || null;
+      const chosenState = cloudState || (pending && pending.state) || localState || legacyState || null;
       if (legacyImport && chosenState === legacyState) {
         try {
           localStorage.setItem(window.lifestyleUserStorageKey, JSON.stringify(legacyState));
