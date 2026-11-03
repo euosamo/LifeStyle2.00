@@ -264,7 +264,8 @@ function splitHeader(full){
 }
 function render(){
   refreshNextPayDate();
-  persistState();
+  if (window.lifestyleSkipNextRenderPersist === true) window.lifestyleSkipNextRenderPersist = false;
+  else persistState();
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===state.page));
   const pages={home,bookings,analytics,fixed,one,installments,goals,accounts,more};
   const titlePages={categories:'Kategorien verwalten',layout:'Layout bearbeiten',backup:'Datensicherung herunterladen',notes:'Notizen',reminders:'Erinnerungen',settings:'Einstellungen','push-settings':'Push-Benachrichtigungen','personal-settings':'Persönliche Angaben','delete-account':'Konto löschen',reset:'Werkseinstellungen',guide:'App-Guide'};
