@@ -397,9 +397,20 @@ function startCloudRealtimeSync(uid) {
     if (merged.conflicts.length) {
       try { localStorage.setItem(window.lifestyleUserStorageKey + "-sync-conflict-" + Date.now(), JSON.stringify({ local, remote, fields: merged.conflicts, savedAt: Date.now() })); } catch (_) {}
     }
-    if (typeof window.lifestyleApplyState === "function") window.lifestyleApplyState(merged.state);
-    if (merged.conflicts.length) msg("Neue Änderungen wurden geladen. Bei gleichzeitig bearbeiteten Bereichen wurde eine lokale Sicherung angelegt: " + merged.conflicts.join(", "), true);
-    else msg("Änderungen von deinem anderen Gerät wurden übernommen.");
+    const mergedDiffersFromRemote = JSON.stringify(merged.state) !== JSON.stringify(remote);
+    if (typeof window.lifestyleApplyState === "function") {
+      window.lifestyleSkipNextRenderPersist = true;
+      window.lifestyleApplyState(merged.state);
+    }
+    // Only upload genuine local-only edits. A remote snapshot must not cause
+    // an automatic echo write, especially when both devices have different
+    // local UI preferences such as layout visibility or reminders.
+    if (mergedDiffersFromRemote && typeof window.lifestyleCloudSave === "function") {
+      window.lifestyleCloudSave(merged.state);
+    }
+    if (merged.conflicts.length) {
+      console.warn("[Lifestyle] Simultaneous changes merged; remote values kept for:", merged.conflicts.join(", "));
+    }
   }, error => {
     msg("Live-Synchronisierung unterbrochen (" + (error.code || "Verbindungsfehler") + "). Deine lokalen Änderungen bleiben erhalten.", true);
   });
