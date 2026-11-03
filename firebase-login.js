@@ -276,10 +276,24 @@ window.lifestyleCloudSave = state => {
       if (pendingSaveKey) localStorage.setItem(pendingSaveKey, JSON.stringify({ state: snapshot, savedAt, baseRevision: cloudRevision }));
     }
   } catch (e) {
-    // Local browser storage can be full. Do not abort here: Firestore may
-    // still accept the snapshot, which is the primary cross-device copy.
-    console.warn("[Lifestyle] Local browser cache write failed; trying cloud sync:", e);
-    msg("Der lokale Zwischenspeicher ist voll. Cloud-Synchronisierung wird trotzdem versucht.", true);
+    // Remove only obsolete conflict backup copies created by earlier sync
+    // versions, then retry the normal local snapshot writes. Never remove
+    // the main user data or pending-save record.
+    console.warn("[Lifestyle] Local browser cache write failed; pruning obsolete conflict backups:", e);
+    try {
+      const prefix = (window.lifestyleUserStorageKey || "") + "-sync-conflict-";
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix) && !key.endsWith("latest")) localStorage.removeItem(key);
+      }
+      if (window.lifestyleUserStorageKey) {
+        localStorage.setItem(window.lifestyleUserStorageKey, JSON.stringify(snapshot));
+        localStorage.setItem(window.lifestyleUserStorageKey + "-saved-at", String(savedAt));
+      }
+      if (pendingSaveKey) localStorage.setItem(pendingSaveKey, JSON.stringify({ state: snapshot, savedAt, baseRevision: cloudRevision }));
+    } catch (retryError) {
+      console.warn("[Lifestyle] Local cache still unavailable; cloud save will continue:", retryError);
+    }
   }
   if (!user || !db || !cloudReady || user.uid !== activeUid) return;
   const saveUser = user;
