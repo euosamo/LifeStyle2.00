@@ -264,9 +264,11 @@ window.lifestyleCloudSave = state => {
       await writeCloudSnapshot(saveUser, snapshot);
       msg("Änderungen synchronisiert.");
     } catch (e) {
+      console.error("[Lifestyle] Firestore write failed:", e);
+      const detail = e.message || e.code || "Unbekannter Fehler";
       msg(e.code === "lifestyle/sync-conflict"
         ? e.message
-        : `Synchronisierung fehlgeschlagen (${e.code || "Fehler"}). Deine Änderung bleibt als ausstehender lokaler Speicherstand erhalten. Bitte Verbindung prüfen und erneut versuchen.`, true);
+        : `Synchronisierung fehlgeschlagen (${e.code || "Fehler"}): ${detail}. Deine Änderung bleibt lokal gesichert.`, true);
     }
   });
 };
