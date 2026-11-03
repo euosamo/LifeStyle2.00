@@ -342,12 +342,36 @@ function mergeDeviceAndCloud(base, local, remote) {
   }
   return { state: merged, conflicts };
 }
+let deferredPersonalSettingsSnapshot = null;
+window.lifestyleMergeDeferredCloudState = personalValues => {
+  if (!deferredPersonalSettingsSnapshot) return false;
+  const { revision, remote } = deferredPersonalSettingsSnapshot;
+  const local = typeof window.lifestyleGetState === "function" ? cloneState(window.lifestyleGetState()) : {};
+  const merged = mergeDeviceAndCloud(lastCloudState || {}, local, remote);
+  Object.assign(merged.state, personalValues || {});
+  cloudRevision = revision;
+  lastCloudState = cloneState(remote);
+  deferredPersonalSettingsSnapshot = null;
+  if (merged.conflicts.length) {
+    try { localStorage.setItem(window.lifestyleUserStorageKey + "-sync-conflict-" + Date.now(), JSON.stringify({ local, remote, fields: merged.conflicts, savedAt: Date.now() })); } catch (_) {}
+  }
+  if (typeof window.lifestyleApplyState === "function") window.lifestyleApplyState(merged.state, { render: false });
+  if (merged.conflicts.length) msg("Andere Änderungen wurden übernommen; eine Sicherung gleichzeitiger Änderungen wurde angelegt.", true);
+  return true;
+};
 function startCloudRealtimeSync(uid) {
   if (cloudUnsubscribe) cloudUnsubscribe();
+  deferredPersonalSettingsSnapshot = null;
   cloudUnsubscribe = onSnapshot(ref(uid), snap => {
     if (!cloudReady || activeUid !== uid || !user || user.uid !== uid || !snap.exists()) return;
     const data = snap.data(), revision = Number(data.revision || 0), remote = decodeFirestoreValue(data.state);
     if (!remote || typeof remote !== "object" || Array.isArray(remote) || revision <= cloudRevision) return;
+    if (window.lifestylePersonalSettingsEditing === true) {
+      if (!deferredPersonalSettingsSnapshot || revision > deferredPersonalSettingsSnapshot.revision) {
+        deferredPersonalSettingsSnapshot = { revision, remote: cloneState(remote) };
+      }
+      return;
+    }
     const local = typeof window.lifestyleGetState === "function" ? cloneState(window.lifestyleGetState()) : {};
     const merged = mergeDeviceAndCloud(lastCloudState || {}, local, remote);
     cloudRevision = revision;
