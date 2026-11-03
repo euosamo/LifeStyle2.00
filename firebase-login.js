@@ -276,8 +276,10 @@ window.lifestyleCloudSave = state => {
       if (pendingSaveKey) localStorage.setItem(pendingSaveKey, JSON.stringify({ state: snapshot, savedAt, baseRevision: cloudRevision }));
     }
   } catch (e) {
-    msg("Lokales Speichern ist fehlgeschlagen. Bitte nicht schließen und Speicherplatz prüfen.", true);
-    return;
+    // Local browser storage can be full. Do not abort here: Firestore may
+    // still accept the snapshot, which is the primary cross-device copy.
+    console.warn("[Lifestyle] Local browser cache write failed; trying cloud sync:", e);
+    msg("Der lokale Zwischenspeicher ist voll. Cloud-Synchronisierung wird trotzdem versucht.", true);
   }
   if (!user || !db || !cloudReady || user.uid !== activeUid) return;
   const saveUser = user;
@@ -380,7 +382,7 @@ window.lifestyleMergeDeferredCloudState = personalValues => {
   lastCloudState = cloneState(remote);
   deferredPersonalSettingsSnapshot = null;
   if (merged.conflicts.length) {
-    try { localStorage.setItem(window.lifestyleUserStorageKey + "-sync-conflict-" + Date.now(), JSON.stringify({ local, remote, fields: merged.conflicts, savedAt: Date.now() })); } catch (_) {}
+    try { localStorage.setItem(window.lifestyleUserStorageKey + "-sync-conflict-latest", JSON.stringify({ local, remote, fields: merged.conflicts, savedAt: Date.now() })); } catch (_) {}
   }
   if (typeof window.lifestyleApplyState === "function") window.lifestyleApplyState(merged.state, { render: false });
   if (merged.conflicts.length) {
@@ -406,7 +408,7 @@ function startCloudRealtimeSync(uid) {
     cloudRevision = revision;
     lastCloudState = cloneState(remote);
     if (merged.conflicts.length) {
-      try { localStorage.setItem(window.lifestyleUserStorageKey + "-sync-conflict-" + Date.now(), JSON.stringify({ local, remote, fields: merged.conflicts, savedAt: Date.now() })); } catch (_) {}
+      try { localStorage.setItem(window.lifestyleUserStorageKey + "-sync-conflict-latest", JSON.stringify({ local, remote, fields: merged.conflicts, savedAt: Date.now() })); } catch (_) {}
     }
     const mergedDiffersFromRemote = JSON.stringify(merged.state) !== JSON.stringify(remote);
     if (typeof window.lifestyleApplyState === "function") {
