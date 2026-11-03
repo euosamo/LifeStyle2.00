@@ -217,25 +217,36 @@ window.lifestyleDeleteAccount = async function () {
   }
 };
 let cloudSaveQueue = Promise.resolve();
-async function writeCloudSnapshot(saveUser, snapshot) {
+async function writeCloudSnapshot(saveUser, snapshot, baseSnapshot) {
   if (!cloudReady || !user || user.uid !== saveUser.uid || activeUid !== saveUser.uid) throw new Error("Anmeldung nicht mehr aktiv.");
-  const expectedRevision = cloudRevision;
+  let committedState = null;
+  let committedRevision = 0;
   await runTransaction(db, async transaction => {
     const current = await transaction.get(ref(saveUser.uid));
-    const actualRevision = current.exists() ? Number(current.data().revision || 0) : 0;
-    if (actualRevision !== expectedRevision) {
-      const conflict = new Error("Die Daten wurden auf einem anderen Gerät geändert. Zum Schutz vor Überschreiben wurde nicht synchronisiert. Bitte neu laden und Änderungen vergleichen.");
-      conflict.code = "lifestyle/sync-conflict";
-      throw conflict;
+    const currentData = current.exists() ? current.data() : {};
+    const actualRevision = Number(currentData.revision || 0);
+    const remoteState = current.exists() ? decodeFirestoreValue(currentData.state) : {};
+    const nextState = cloneState(remoteState || {});
+    const base = baseSnapshot && typeof baseSnapshot === "object" ? baseSnapshot : {};
+    const local = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const keys = new Set([...Object.keys(base), ...Object.keys(local)]);
+    for (const key of keys) {
+      const before = JSON.stringify(base[key]);
+      const after = JSON.stringify(local[key]);
+      if (before === after) continue;
+      if (Object.prototype.hasOwnProperty.call(local, key)) nextState[key] = local[key];
+      else delete nextState[key];
     }
+    committedState = nextState;
+    committedRevision = actualRevision + 1;
     transaction.set(ref(saveUser.uid), {
-      state: encodeFirestoreValue(snapshot),
-      revision: expectedRevision + 1,
+      state: encodeFirestoreValue(nextState),
+      revision: committedRevision,
       updatedAt: serverTimestamp()
     });
   });
-  cloudRevision = expectedRevision + 1;
-  lastCloudState = cloneState(snapshot);
+  cloudRevision = Math.max(cloudRevision, committedRevision);
+  lastCloudState = cloneState(committedState);
   try {
     localStorage.removeItem(pendingSaveKey);
     localStorage.setItem(window.lifestyleUserStorageKey + "-cloud-saved-at", String(Date.now()));
@@ -245,6 +256,7 @@ window.lifestyleCloudSave = state => {
   let snapshot;
   try { snapshot = JSON.parse(JSON.stringify(state)); } catch (_) { return; }
   const savedAt = Date.now();
+  const baseSnapshot = cloneState(lastCloudState || {});
   // Keep both the latest local snapshot and an explicit retry copy before network work.
   try {
     if (window.lifestyleUserStorageKey) {
@@ -261,7 +273,7 @@ window.lifestyleCloudSave = state => {
   cloudSaveQueue = cloudSaveQueue.catch(() => {}).then(async () => {
     if (!cloudReady || !user || user.uid !== saveUser.uid || activeUid !== saveUser.uid) return;
     try {
-      await writeCloudSnapshot(saveUser, snapshot);
+      await writeCloudSnapshot(saveUser, snapshot, baseSnapshot);
       msg("Änderungen synchronisiert.");
     } catch (e) {
       console.error("[Lifestyle] Firestore write failed:", e);
