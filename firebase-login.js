@@ -284,9 +284,13 @@ window.lifestyleCloudSave = state => {
     } catch (e) {
       console.error("[Lifestyle] Firestore write failed:", e);
       const detail = e.message || e.code || "Unbekannter Fehler";
-      msg(e.code === "lifestyle/sync-conflict"
-        ? e.message
-        : `Synchronisierung fehlgeschlagen (${e.code || "Fehler"}): ${detail}. Deine Änderung bleibt lokal gesichert.`, true);
+      if (e.code === "lifestyle/sync-conflict") {
+        // A simultaneous transaction retry/conflict is expected with two active devices.
+        // Keep the local pending snapshot, but do not repeatedly interrupt the user.
+        console.warn("[Lifestyle] Simultaneous cloud write detected; local snapshot retained for the next save.");
+      } else {
+        msg(`Synchronisierung fehlgeschlagen (${e.code || "Fehler"}): ${detail}. Deine Änderung bleibt lokal gesichert.`, true);
+      }
     }
   });
 };
