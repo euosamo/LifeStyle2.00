@@ -256,7 +256,6 @@ window.lifestyleCloudSave = state => {
   let snapshot;
   try { snapshot = JSON.parse(JSON.stringify(state)); } catch (_) { return; }
   const savedAt = Date.now();
-  const baseSnapshot = cloneState(lastCloudState || {});
   // Keep both the latest local snapshot and an explicit retry copy before network work.
   try {
     if (window.lifestyleUserStorageKey) {
@@ -273,7 +272,7 @@ window.lifestyleCloudSave = state => {
   cloudSaveQueue = cloudSaveQueue.catch(() => {}).then(async () => {
     if (!cloudReady || !user || user.uid !== saveUser.uid || activeUid !== saveUser.uid) return;
     try {
-      await writeCloudSnapshot(saveUser, snapshot, baseSnapshot);
+      await writeCloudSnapshot(saveUser, snapshot, lastCloudState || {});
       msg("Änderungen synchronisiert.");
     } catch (e) {
       console.error("[Lifestyle] Firestore write failed:", e);
@@ -293,7 +292,7 @@ window.lifestyleFlushCloudSave = async () => {
   const snapshot = JSON.parse(JSON.stringify(currentState));
   try {
     await cloudSaveQueue;
-    await writeCloudSnapshot(saveUser, snapshot);
+    await writeCloudSnapshot(saveUser, snapshot, lastCloudState || {});
     msg("Daten vor der Abmeldung gespeichert.");
   } catch (e) {
     msg(e.code === "lifestyle/sync-conflict" ? e.message : `Speichern vor Abmeldung fehlgeschlagen (${e.code || "Fehler"}). Bitte Verbindung prüfen und erneut versuchen.`, true);
