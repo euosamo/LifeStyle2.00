@@ -292,6 +292,17 @@ window.lifestyleFlushCloudSave = async () => {
 // Firestore forbids arrays directly inside arrays. The app uses row arrays
 // (for example fixed expenses), so wrap only nested array elements in a tagged map.
 const FIRESTORE_ARRAY_TAG = "lifestyleFirestoreNestedArrayV1";
+const FIRESTORE_ESCAPED_FIELD_PREFIX = "lifestyleFirestoreEscapedField_";
+function encodeFirestoreFieldKey(key) {
+  return /^__.*__$/.test(key) ? FIRESTORE_ESCAPED_FIELD_PREFIX + encodeURIComponent(key) : key;
+}
+function decodeFirestoreFieldKey(key) {
+  if (!key.startsWith(FIRESTORE_ESCAPED_FIELD_PREFIX)) return key;
+  try {
+    const original = decodeURIComponent(key.slice(FIRESTORE_ESCAPED_FIELD_PREFIX.length));
+    return /^__.*__$/.test(original) ? original : key;
+  } catch (_) { return key; }
+}
 function encodeFirestoreValue(value, arrayElement = false) {
   if (Array.isArray(value)) {
     const items = value.map(item => encodeFirestoreValue(item, true));
@@ -299,7 +310,7 @@ function encodeFirestoreValue(value, arrayElement = false) {
   }
   if (value && typeof value === "object") {
     const out = {};
-    for (const [key, item] of Object.entries(value)) out[key] = encodeFirestoreValue(item, false);
+    for (const [key, item] of Object.entries(value)) out[encodeFirestoreFieldKey(key)] = encodeFirestoreValue(item, false);
     return out;
   }
   return value;
@@ -311,7 +322,7 @@ function decodeFirestoreValue(value) {
       return value.items.map(decodeFirestoreValue);
     }
     const out = {};
-    for (const [key, item] of Object.entries(value)) out[key] = decodeFirestoreValue(item);
+    for (const [key, item] of Object.entries(value)) out[decodeFirestoreFieldKey(key)] = decodeFirestoreValue(item);
     return out;
   }
   return value;
