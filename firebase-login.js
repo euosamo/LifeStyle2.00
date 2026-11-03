@@ -374,7 +374,9 @@ window.lifestyleMergeDeferredCloudState = personalValues => {
     try { localStorage.setItem(window.lifestyleUserStorageKey + "-sync-conflict-" + Date.now(), JSON.stringify({ local, remote, fields: merged.conflicts, savedAt: Date.now() })); } catch (_) {}
   }
   if (typeof window.lifestyleApplyState === "function") window.lifestyleApplyState(merged.state, { render: false });
-  if (merged.conflicts.length) msg("Andere Änderungen wurden übernommen; eine Sicherung gleichzeitiger Änderungen wurde angelegt.", true);
+  if (merged.conflicts.length) {
+    console.warn("[Lifestyle] Personal settings merge kept the entered values; backup saved for:", merged.conflicts.join(", "));
+  }
   return true;
 };
 function startCloudRealtimeSync(uid) {
