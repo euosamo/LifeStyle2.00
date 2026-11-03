@@ -291,7 +291,7 @@ window.lifestyleFlushCloudSave = async () => {
 
 // Firestore forbids arrays directly inside arrays. The app uses row arrays
 // (for example fixed expenses), so wrap only nested array elements in a tagged map.
-const FIRESTORE_ARRAY_TAG = "__lifestyle_firestore_nested_array_v1__";
+const FIRESTORE_ARRAY_TAG = "lifestyleFirestoreNestedArrayV1";
 function encodeFirestoreValue(value, arrayElement = false) {
   if (Array.isArray(value)) {
     const items = value.map(item => encodeFirestoreValue(item, true));
