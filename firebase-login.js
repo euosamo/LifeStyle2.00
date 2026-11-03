@@ -263,6 +263,11 @@ window.lifestyleCloudSave = state => {
   let snapshot;
   try { snapshot = JSON.parse(JSON.stringify(state)); } catch (_) { return; }
   const savedAt = Date.now();
+  // Capture the cloud base at the exact moment this local edit is made.
+  // Never read lastCloudState later inside the async queue: by then a newer
+  // remote snapshot may have arrived, making an old device snapshot look like
+  // a fresh edit and resurrecting deleted items (for example, savings goals).
+  const baseSnapshot = cloneState(lastCloudState || {});
   // Keep both the latest local snapshot and an explicit retry copy before network work.
   try {
     if (window.lifestyleUserStorageKey) {
@@ -279,7 +284,7 @@ window.lifestyleCloudSave = state => {
   cloudSaveQueue = cloudSaveQueue.catch(() => {}).then(async () => {
     if (!cloudReady || !user || user.uid !== saveUser.uid || activeUid !== saveUser.uid) return;
     try {
-      await writeCloudSnapshot(saveUser, snapshot, lastCloudState || {});
+      await writeCloudSnapshot(saveUser, snapshot, baseSnapshot);
       msg("Änderungen synchronisiert.");
     } catch (e) {
       console.error("[Lifestyle] Firestore write failed:", e);
