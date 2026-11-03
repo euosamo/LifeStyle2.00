@@ -229,7 +229,7 @@ async function writeCloudSnapshot(saveUser, snapshot) {
       throw conflict;
     }
     transaction.set(ref(saveUser.uid), {
-      state: snapshot,
+      state: encodeFirestoreValue(snapshot),
       revision: expectedRevision + 1,
       updatedAt: serverTimestamp()
     });
@@ -289,6 +289,33 @@ window.lifestyleFlushCloudSave = async () => {
   }
 };
 
+// Firestore forbids arrays directly inside arrays. The app uses row arrays
+// (for example fixed expenses), so wrap only nested array elements in a tagged map.
+const FIRESTORE_ARRAY_TAG = "__lifestyle_firestore_nested_array_v1__";
+function encodeFirestoreValue(value, arrayElement = false) {
+  if (Array.isArray(value)) {
+    const items = value.map(item => encodeFirestoreValue(item, true));
+    return arrayElement ? { [FIRESTORE_ARRAY_TAG]: true, items } : items;
+  }
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [key, item] of Object.entries(value)) out[key] = encodeFirestoreValue(item, false);
+    return out;
+  }
+  return value;
+}
+function decodeFirestoreValue(value) {
+  if (Array.isArray(value)) return value.map(decodeFirestoreValue);
+  if (value && typeof value === "object") {
+    if (value[FIRESTORE_ARRAY_TAG] === true && Array.isArray(value.items)) {
+      return value.items.map(decodeFirestoreValue);
+    }
+    const out = {};
+    for (const [key, item] of Object.entries(value)) out[key] = decodeFirestoreValue(item);
+    return out;
+  }
+  return value;
+}
 function cloneState(value) { return value && typeof value === "object" ? JSON.parse(JSON.stringify(value)) : {}; }
 function mergeDeviceAndCloud(base, local, remote) {
   const merged = {}, conflicts = [];
@@ -308,7 +335,7 @@ function startCloudRealtimeSync(uid) {
   if (cloudUnsubscribe) cloudUnsubscribe();
   cloudUnsubscribe = onSnapshot(ref(uid), snap => {
     if (!cloudReady || activeUid !== uid || !user || user.uid !== uid || !snap.exists()) return;
-    const data = snap.data(), revision = Number(data.revision || 0), remote = data.state;
+    const data = snap.data(), revision = Number(data.revision || 0), remote = decodeFirestoreValue(data.state);
     if (!remote || typeof remote !== "object" || Array.isArray(remote) || revision <= cloudRevision) return;
     const local = typeof window.lifestyleGetState === "function" ? cloneState(window.lifestyleGetState()) : {};
     const merged = mergeDeviceAndCloud(lastCloudState || {}, local, remote);
@@ -441,7 +468,7 @@ try {
       const pendingRaw = localStorage.getItem(pendingSaveKey);
       const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
       if (pending && (!pending.state || typeof pending.state !== "object" || Array.isArray(pending.state))) throw new Error("Ausstehender lokaler Speicherstand ist ungültig. Er wurde nicht überschrieben.");
-      const cloudState = snap.exists() ? snap.data().state : null;
+      const cloudState = snap.exists() ? decodeFirestoreValue(snap.data().state) : null;
       // A revision mismatch must not lock the user out. Preserve the pending
       // snapshot under a separate recovery key, then use the cloud as authority
       // when it exists. If no cloud document exists, retain the pending snapshot.
