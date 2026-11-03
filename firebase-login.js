@@ -238,6 +238,13 @@ async function writeCloudSnapshot(saveUser, snapshot, baseSnapshot) {
       else delete nextState[key];
     }
     committedState = nextState;
+    // Rendering an incoming snapshot calls persistState(). If that snapshot is
+    // already identical to Firestore, do not create another revision: otherwise
+    // both devices continuously trigger each other's realtime listeners.
+    if (JSON.stringify(nextState) === JSON.stringify(remoteState || {})) {
+      committedRevision = actualRevision;
+      return;
+    }
     committedRevision = actualRevision + 1;
     transaction.set(ref(saveUser.uid), {
       state: encodeFirestoreValue(nextState),
