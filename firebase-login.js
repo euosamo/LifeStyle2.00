@@ -22,9 +22,17 @@ let pendingSaveKey = null;
 window.lifestyleCloudReady = false;
 
 function msg(text, error = false) {
-  if (!message) return;
-  message.textContent = text;
-  message.className = error ? "auth-message error" : "auth-message";
+  if (message) {
+    message.textContent = text;
+    message.className = error ? "auth-message error" : "auth-message";
+  }
+  // The login gate is hidden after sign-in, so cloud errors must also be visible in the app.
+  if (error) {
+    console.error("[Lifestyle]", text);
+    if (appRoot && !appRoot.hidden && typeof window.showToast === "function") {
+      window.showToast(text);
+    }
+  }
 }
 function formMode() {
   const reg = mode === "register";
