@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, browserLocalPersistence, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBsklHgKgsiwEmY_PhmLxhYTdiGlbXpCqc",
@@ -384,7 +384,7 @@ try {
   // Initialize auth directly with browser storage. Avoid awaiting IndexedDB persistence,
   // which can stall Firebase startup on some iOS PWA installations.
   auth = initializeAuth(app, { persistence: browserLocalPersistence });
-  db = getFirestore(app);
+  db = initializeFirestore(app, { ignoreUndefinedProperties: true });
   onAuthStateChanged(auth, async nextUser => {
     clearTimeout(timer);
     if (cloudUnsubscribe) { cloudUnsubscribe(); cloudUnsubscribe = null; }
