@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import vm from "node:vm";
 
 const read = path => readFileSync(path, "utf8");
 
@@ -21,6 +22,20 @@ test("new account password policy and verified-email gate are present", () => {
   assert.match(app, /next\.currency=\[\x27EUR\x27,\x27USD\x27,\x27GBP\x27\]/);
   assert.match(app, /function safeIconClass\(value\)/);
   assert.match(app, /Object\.prototype\.hasOwnProperty\.call\(pages,state\.page\)/);
+  assert.match(app, /function normalizeSavedState\(saved,page\)/);
+  assert.match(app, /safeIconClass\(t\.color\)/);
+  assert.match(app, /safeIconClass\(row\[4\]\)/);
+  assert.match(app, /safeIconClass\(x\[4\]\)/);
+  assert.match(app, /data-account-name=/);
+  assert.match(app, /escapeHTML\(t\.date\|\|\\x27\\x27\)/);
+
+});
+
+test("main inline application script parses without syntax errors", () => {
+  const html = read("index.html");
+  const match = html.match(/<script>([\\s\\S]*?)<\\/script>/);
+  assert.ok(match, "inline app script not found");
+  assert.doesNotThrow(() => new vm.Script(match[1], { filename: "index.html:inline-script" }));
 });
 
 test("Cloudflare response headers provide core browser protections", () => {
