@@ -133,7 +133,7 @@ async function run(env) {
           || host==="updates.push.services.mozilla.com"
           || host==="web.push.apple.com"
           || host.endsWith(".notify.windows.com");
-        if(endpoint.protocol!=="https:" || !trustedPushHost) {
+        if(endpoint.protocol!=="https:" || (endpoint.port && endpoint.port!=="443") || endpoint.username || endpoint.password || !trustedPushHost) {
           console.warn("Skipping untrusted push endpoint host:",host);
           continue;
         }
@@ -148,8 +148,14 @@ async function run(env) {
 export default {
   async scheduled(controller,env,ctx) { ctx.waitUntil(run(env).catch(e=>console.error("Scheduled push failed:",e))); },
   async fetch(request,env) {
-    const path = new URL(request.url).pathname;
-    if(path === "/" || path === "/health") return Response.json({ok:true,service:"Lifestyle Push Worker",health:"online"});
-    return Response.json({ok:false,error:"Not found",path},{status:404});
+    const url = new URL(request.url);
+    const headers = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
+    if (request.method !== "GET") {
+      return Response.json({ok:false,error:"Method not allowed"},{status:405,headers:{...headers,"Allow":"GET"}});
+    }
+    if (url.pathname === "/" || url.pathname === "/health") {
+      return Response.json({ok:true,service:"Lifestyle Push Worker",health:"online"},{headers});
+    }
+    return Response.json({ok:false,error:"Not found"},{status:404,headers});
   }
 };
