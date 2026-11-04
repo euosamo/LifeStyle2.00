@@ -14,6 +14,7 @@ test("new account password policy and verified-email gate are present", () => {
   assert.match(rules, /request\.auth\.token\.email_verified/);
   assert.match(auth, /deleteOwnCollection\(current\.uid, "pushSubscriptions"\)/);
   assert.match(auth, /deleteOwnCollection\(current\.uid, "pushDeliveries"\)/);
+  assert.match(auth, /localStorage\.removeItem\("lifestyle-finanz-app-v3-empty"\)/);
   const app = read("index.html");
   assert.match(app, /escapeHTML\(t\.name\|\|\x27\x27\)/);
   assert.match(app, /escapeHTML\(x\[0\]\|\|\x27\x27\)/);
