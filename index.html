@@ -225,7 +225,7 @@ function normalizeSavedState(saved,page){
  next.reminders=Object.fromEntries(['inst','one','goals'].map(key=>{
   const value=incoming[key]&&typeof incoming[key]==='object'&&!Array.isArray(incoming[key])?incoming[key]:{};
   const day=Number(value.day);
-  const time=typeof value.time==='string'&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value.time)?value.time:'09:00';
+  const time=typeof value.time==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(value.time)?value.time:'09:00';
   return [key,{enabled:value.enabled===true,day:Number.isInteger(day)?Math.min(31,Math.max(1,day)):1,time}];
  }));
  next.reminderFired=next.reminderFired&&typeof next.reminderFired==='object'&&!Array.isArray(next.reminderFired)?next.reminderFired:{};
