@@ -29,7 +29,7 @@ service cloud.firestore {
           && request.resource.data.subscription.keys().hasOnly(['endpoint', 'expirationTime', 'keys'])
           && request.resource.data.subscription.keys().hasAll(['endpoint', 'keys'])
           && request.resource.data.subscription.endpoint is string
-          && request.resource.data.subscription.endpoint.matches('^https://.*')
+          && request.resource.data.subscription.endpoint.matches('^https://(fcm\\.googleapis\\.com|updates\\.push\\.services\\.mozilla\\.com|web\\.push\\.apple\\.com|[a-z0-9-]+\\.notify\\.windows\\.com)/.*')
           && request.resource.data.subscription.endpoint.size() <= 2048
           && request.resource.data.subscription.keys is map
           && request.resource.data.subscription.keys.keys().hasOnly(['p256dh', 'auth'])
