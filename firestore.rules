@@ -4,12 +4,14 @@ service cloud.firestore {
     match /users/{userId}/appData/{documentId} {
       allow read, write: if request.auth != null
                          && request.auth.uid == userId
+                         && request.auth.token.email_verified == true
                          && documentId == 'main';
     }
     // Push-Abonnements: nur der angemeldete Kontoinhaber darf eigene Geräte verwalten.
     match /users/{userId}/pushSubscriptions/{subscriptionId} {
       allow read, create, update, delete: if request.auth != null
-                                          && request.auth.uid == userId;
+                                          && request.auth.uid == userId
+                         && request.auth.token.email_verified == true;
     }
     // Zustellmarker werden ausschließlich serverseitig mit Service Account verwaltet.
     match /users/{userId}/pushDeliveries/{deliveryId} {
