@@ -9,14 +9,20 @@ service cloud.firestore {
 
     match /users/{userId}/appData/{documentId} {
       allow read: if isVerifiedOwner(userId) && documentId == 'main';
-      allow create, update: if isVerifiedOwner(userId)
-          && documentId == 'main'
-          && request.resource.data.keys().hasOnly(['state', 'revision', 'updatedAt'])
-          && request.resource.data.keys().hasAll(['state', 'revision', 'updatedAt'])
-          && request.resource.data.state is map
-          && request.resource.data.revision is int
-          && request.resource.data.revision >= 0
-          && request.resource.data.updatedAt is timestamp;
+      function validAppDataWrite() {
+        return documentId == 'main'
+            && request.resource.data.keys().hasOnly(['state', 'revision', 'updatedAt'])
+            && request.resource.data.keys().hasAll(['state', 'revision', 'updatedAt'])
+            && request.resource.data.state is map
+            && request.resource.data.revision is int
+            && request.resource.data.updatedAt is timestamp;
+      }
+      allow create: if isVerifiedOwner(userId)
+          && validAppDataWrite()
+          && request.resource.data.revision == 1;
+      allow update: if isVerifiedOwner(userId)
+          && validAppDataWrite()
+          && request.resource.data.revision == resource.data.revision + 1;
       allow delete: if isVerifiedOwner(userId) && documentId == 'main';
     }
 
