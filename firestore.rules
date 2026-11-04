@@ -1,22 +1,59 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isVerifiedOwner(userId) {
+      return request.auth != null
+          && request.auth.uid == userId
+          && request.auth.token.email_verified == true;
+    }
+
     match /users/{userId}/appData/{documentId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId
-                         && request.auth.token.email_verified == true
-                         && documentId == 'main';
+      allow read: if isVerifiedOwner(userId) && documentId == 'main';
+      allow create, update: if isVerifiedOwner(userId)
+          && documentId == 'main'
+          && request.resource.data.keys().hasOnly(['state', 'revision', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['state', 'revision', 'updatedAt'])
+          && request.resource.data.state is map
+          && request.resource.data.revision is int
+          && request.resource.data.revision >= 0
+          && request.resource.data.updatedAt is timestamp;
+      allow delete: if isVerifiedOwner(userId) && documentId == 'main';
     }
-    // Push-Abonnements: nur der angemeldete Kontoinhaber darf eigene Geräte verwalten.
+
     match /users/{userId}/pushSubscriptions/{subscriptionId} {
-      allow read, create, update, delete: if request.auth != null
-                                          && request.auth.uid == userId
-                         && request.auth.token.email_verified == true;
+      allow read: if isVerifiedOwner(userId);
+      allow create, update: if isVerifiedOwner(userId)
+          && request.resource.data.keys().hasOnly(['subscription', 'timezone', 'userAgent', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['subscription', 'timezone', 'userAgent', 'updatedAt'])
+          && request.resource.data.subscription is map
+          && request.resource.data.subscription.keys().hasOnly(['endpoint', 'expirationTime', 'keys'])
+          && request.resource.data.subscription.keys().hasAll(['endpoint', 'keys'])
+          && request.resource.data.subscription.endpoint is string
+          && request.resource.data.subscription.endpoint.matches('^https://.*')
+          && request.resource.data.subscription.endpoint.size() <= 2048
+          && request.resource.data.subscription.keys is map
+          && request.resource.data.subscription.keys.keys().hasOnly(['p256dh', 'auth'])
+          && request.resource.data.subscription.keys.keys().hasAll(['p256dh', 'auth'])
+          && request.resource.data.subscription.keys.p256dh is string
+          && request.resource.data.subscription.keys.p256dh.size() <= 256
+          && request.resource.data.subscription.keys.auth is string
+          && request.resource.data.subscription.keys.auth.size() <= 256
+          && request.resource.data.timezone is string
+          && request.resource.data.timezone.size() <= 64
+          && request.resource.data.userAgent is string
+          && request.resource.data.userAgent.size() <= 180
+          && request.resource.data.updatedAt is timestamp
+          && (!('expirationTime' in request.resource.data.subscription)
+              || request.resource.data.subscription.expirationTime == null
+              || request.resource.data.subscription.expirationTime is number);
+      allow delete: if isVerifiedOwner(userId);
     }
+
     // Zustellmarker werden ausschließlich serverseitig mit Service Account verwaltet.
     match /users/{userId}/pushDeliveries/{deliveryId} {
       allow read, write: if false;
     }
+
     // Den Rest der Datenbank standardmäßig sperren.
     match /{document=**} {
       allow read, write: if false;
