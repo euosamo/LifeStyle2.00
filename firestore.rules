@@ -22,8 +22,8 @@ service cloud.firestore {
           && request.resource.data.revision == 1;
       allow update: if isVerifiedOwner(userId)
           && validAppDataWrite()
-          && ((!('revision' in resource.data) && request.resource.data.revision == 1)
-              || (resource.data.revision is int && request.resource.data.revision == resource.data.revision + 1));
+          && resource.data.get('revision', 0) is int
+          && request.resource.data.revision == resource.data.get('revision', 0) + 1;
       allow delete: if isVerifiedOwner(userId) && documentId == 'main';
     }
 
