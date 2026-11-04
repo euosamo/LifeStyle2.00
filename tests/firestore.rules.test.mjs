@@ -53,6 +53,15 @@ test("app data schema rejects unexpected fields and invalid revisions", async ()
   await assertFails(setDoc(doc(db, "users/alice/appData/other"), validAppData()));
 });
 
+test("app data revision must increase exactly one step", async () => {
+  const db = env.authenticatedContext("alice", { email_verified: true }).firestore();
+  const path = doc(db, "users/alice/appData/main");
+  await assertSucceeds(setDoc(path, validAppData()));
+  await assertSucceeds(setDoc(path, { ...validAppData(), revision: 2 }));
+  await assertFails(setDoc(path, { ...validAppData(), revision: 4 }));
+  await assertFails(setDoc(path, { ...validAppData(), revision: 1 }));
+});
+
 test("push subscriptions are owner-only and schema-validated", async () => {
   const alice = env.authenticatedContext("alice", { email_verified: true }).firestore();
   const bob = env.authenticatedContext("bob", { email_verified: true }).firestore();
