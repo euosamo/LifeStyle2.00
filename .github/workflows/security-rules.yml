@@ -26,5 +26,9 @@ jobs:
           node-version: 22
       - name: Install test dependencies
         run: npm install --no-save --no-audit --no-fund firebase@latest @firebase/rules-unit-testing@latest firebase-tools@latest
+      - name: Syntax-check runtime modules
+        run: |
+          node --check --input-type=module < firebase-login.js
+          node --check --input-type=module < push-worker/src/index.js
       - name: Test Firestore rules in emulator
         run: npx firebase emulators:exec --only firestore --project demo-lifestyle-rules "node --test tests/*.test.mjs"
