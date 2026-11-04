@@ -41,12 +41,19 @@ function formMode() {
   document.getElementById("authSubmit").textContent = reg ? "Kostenlos registrieren" : "Anmelden";
   document.getElementById("authSwitch").textContent = reg ? "Ich habe bereits ein Konto" : "Neues Konto erstellen";
   document.getElementById("authForgot").hidden = reg;
+  const passwordInput = document.getElementById("authPassword");
+  passwordInput.minLength = reg ? 12 : 6;
+  passwordInput.autocomplete = reg ? "new-password" : "current-password";
+  passwordInput.setAttribute("aria-describedby", "authPasswordHint");
+  const hint = document.getElementById("authPasswordHint");
+  if (hint) hint.textContent = reg ? "Mindestens 12 Zeichen verwenden." : "";
   msg("");
 }
 function authError(e) {
   const errors = {
     "auth/invalid-email": "Bitte eine gültige E-Mail-Adresse eingeben.",
-    "auth/weak-password": "Das Passwort muss mindestens 6 Zeichen haben.",
+    "auth/weak-password": "Bitte verwende ein stärkeres Passwort mit mindestens 12 Zeichen.",
+    "lifestyle/weak-password": "Bitte verwende ein Passwort mit mindestens 12 Zeichen.",
     "auth/email-already-in-use": "Diese E-Mail ist bereits registriert. Bitte anmelden.",
     "auth/invalid-credential": "E-Mail oder Passwort stimmt nicht.",
     "auth/user-not-found": "Für diese E-Mail gibt es noch kein Konto. Bitte registrieren.",
@@ -79,6 +86,7 @@ document.getElementById("authForm").addEventListener("submit", async e => {
   try {
     if (!auth) throw new Error("Firebase ist nicht gestartet.");
     if (mode === "register") {
+      if (password.length < 12) throw Object.assign(new Error("Bitte verwende ein Passwort mit mindestens 12 Zeichen."), { code: "lifestyle/weak-password" });
       const credential = await createUserWithEmailAndPassword(auth, email, password);
       try { localStorage.setItem("lifestyle-finanz-new-user-uid", credential.user.uid); } catch (_) {}
       await sendEmailVerification(credential.user);
