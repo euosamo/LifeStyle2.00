@@ -180,7 +180,7 @@ button, input, select, textarea { max-width:100%; }
     <p id="authSubtitle">Melde dich an, um deine Finanzen zu öffnen.</p>
     <form id="authForm">
       <label for="authEmail">E-Mail-Adresse</label><input id="authEmail" type="email" autocomplete="email" required>
-      <label for="authPassword">Passwort</label><input id="authPassword" type="password" autocomplete="current-password" minlength="6" required>
+      <label for="authPassword">Passwort</label><input id="authPassword" type="password" autocomplete="current-password" minlength="6" required><small id="authPasswordHint" class="auth-message" aria-live="polite"></small>
       <button id="authSubmit" type="submit">Anmelden</button>
     </form>
     <button id="authForgot" class="secondary" type="button">Passwort vergessen?</button>
