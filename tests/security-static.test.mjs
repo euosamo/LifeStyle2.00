@@ -11,6 +11,14 @@ test("new account password policy and verified-email gate are present", () => {
   assert.match(auth, /if \(!user\.emailVerified\)/);
   const rules = read("firestore.rules");
   assert.match(rules, /request\.auth\.token\.email_verified/);
+  assert.match(auth, /deleteOwnCollection\(current\.uid, "pushSubscriptions"\)/);
+  assert.match(auth, /deleteOwnCollection\(current\.uid, "pushDeliveries"\)/);
+  const app = read("index.html");
+  assert.match(app, /escapeHTML\(t\.name\|\|\x27\x27\)/);
+  assert.match(app, /escapeHTML\(x\[0\]\|\|\x27\x27\)/);
+  assert.match(app, /escapeHTML\(row\[0\]\|\|\x27\x27\)/);
+  assert.match(app, /LAYOUT_KEYS=\[\x27fixed\x27,\x27one\x27,\x27installments\x27,\x27goals\x27\]/);
+  assert.match(app, /next\.currency=\[\x27EUR\x27,\x27USD\x27,\x27GBP\x27\]/);
 });
 
 test("Cloudflare response headers provide core browser protections", () => {
