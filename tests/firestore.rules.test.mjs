@@ -59,6 +59,15 @@ test("push subscriptions are owner-only and schema-validated", async () => {
   const path = doc(alice, "users/alice/pushSubscriptions/device1");
   await assertSucceeds(setDoc(path, validSubscription()));
   await assertSucceeds(getDoc(path));
+  for (const [index, endpoint] of [
+    "https://updates.push.services.mozilla.com/subscription",
+    "https://web.push.apple.com/subscription",
+    "https://wns2-example.notify.windows.com/subscription"
+  ].entries()) {
+    const allowed = validSubscription();
+    allowed.subscription.endpoint = endpoint;
+    await assertSucceeds(setDoc(doc(alice, "users/alice/pushSubscriptions/device" + (index + 2)), allowed));
+  }
   await assertFails(getDoc(doc(bob, "users/alice/pushSubscriptions/device1")));
   await assertFails(setDoc(path, { ...validSubscription(), extra: "not allowed" }));
   const invalidEndpoint = validSubscription();
