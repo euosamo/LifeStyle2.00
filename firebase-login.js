@@ -206,7 +206,7 @@ window.lifestyleDeleteAccount = async function () {
   const current = auth.currentUser;
   const confirmed = await window.appConfirm("Möchtest du dein Lifestyle-Konto wirklich dauerhaft löschen? Deine gespeicherten Finanzdaten und dein Login werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.");
   if (!confirmed) return;
-  const password = await window.appPrompt("Bitte gib zur Sicherheitsprüfung dein Passwort ein:");
+  const password = await window.appPrompt("Bitte gib zur Sicherheitsprüfung dein Passwort ein:", "", "password");
   if (password === null || !password) {
     msg("Kontolöschung abgebrochen. Zur Löschung ist eine erneute Sicherheitsprüfung nötig.");
     return;
