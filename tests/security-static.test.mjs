@@ -42,6 +42,14 @@ test("notification clicks cannot navigate outside the app origin", () => {
   assert.match(worker, /new URL\('\.\/', self\.location\.origin\)/);
 });
 
+test("push worker only sends to trusted browser push providers", () => {
+  const worker = read("push-worker/src/index.js");
+  assert.match(worker, /trustedPushHost/);
+  assert.match(worker, /host==="fcm\.googleapis\.com"/);
+  assert.match(worker, /host==="web\.push\.apple\.com"/);
+  assert.match(worker, /host\.endsWith\("\.notify\.windows\.com"\)/);
+});
+
 test("Firestore rules require verified ownership and deny unmatched paths", () => {
   const rules = read("firestore.rules");
   assert.match(rules, /request\.auth\.uid == userId/);
