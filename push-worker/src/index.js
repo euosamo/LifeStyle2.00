@@ -56,14 +56,47 @@ function localParts(date,tz) {
   return Object.fromEntries(p.map(x=>[x.type,x.value]));
 }
 function dueList(state,now,tz) {
-  const p=localParts(now,tz), day=p.year+"-"+p.month+"-"+p.day, hm=p.hour+":"+p.minute, out=[];
-  const add=(id,title,body,date,time)=>{if(date===day&&time===hm)out.push({id,title:title||"Lifestyle-Erinnerung",body:body||"Deine Erinnerung ist fällig."});};
+  const safeState=state&&typeof state==="object"&&!Array.isArray(state)?state:{};
+  let p;
+  try { p=localParts(now,tz||"Europe/Berlin"); }
+  catch (_) { p=localParts(now,"Europe/Berlin"); }
+  const day=p.year+"-"+p.month+"-"+p.day, hm=p.hour+":"+p.minute, out=[];
+  const add=(id,title,body,date,time)=>{
+    if(date!==day||time!==hm)return;
+    out.push({
+      id:String(id??"reminder").slice(0,120),
+      title:String(title||"Lifestyle-Erinnerung").slice(0,80),
+      body:String(body||"Deine Erinnerung ist fällig.").slice(0,220)
+    });
+  };
+  const reminders=safeState.reminders&&typeof safeState.reminders==="object"&&!Array.isArray(safeState.reminders)?safeState.reminders:{};
   for(const [k,label] of [["inst","Raten & Verpflichtungen"],["one","Einmalige Ausgaben"],["goals","Sparziele"]]) {
-    const r=state.reminders?.[k]; if(r?.enabled&&Number(r.day)===Number(p.day)&&r.time===hm) add("area-"+k,label,"Deine monatliche Erinnerung ist fällig.",day,hm);
+    const r=reminders[k];
+    if(r&&typeof r==="object"&&r.enabled===true&&Number(r.day)===Number(p.day)&&r.time===hm) {
+      add("area-"+k,label,"Deine monatliche Erinnerung ist fällig.",day,hm);
+    }
   }
-  for(const n of state.notes||[]) { const r=n.reminder; if(r?.enabled) add("note-"+(n.id||n.title),n.title,n.body,r.date,r.time); }
-  for(const x of state.one||[]) { const r=x[5]; if(r?.enabled) add("one-"+(x[6]||x[0]),x[0],"Deine Erinnerung für diese einmalige Ausgabe ist fällig.",r.date,r.time); }
-  for(const x of state.inst||[]) { const r=x[6]; if(r?.enabled) { const date=r.date||x[5]; add("inst-"+(x[0]||"rate"),x[0],"Deine Zahlungserinnerung ist fällig.",date,r.time); } }
+  const notes=Array.isArray(safeState.notes)?safeState.notes:[];
+  for(const n of notes) {
+    if(!n||typeof n!=="object")continue;
+    const r=n.reminder;
+    if(r&&typeof r==="object"&&r.enabled===true) add("note-"+(n.id||n.title||"note"),n.title,n.body,r.date,r.time);
+  }
+  const one=Array.isArray(safeState.one)?safeState.one:[];
+  for(const x of one) {
+    if(!Array.isArray(x))continue;
+    const r=x[5];
+    if(r&&typeof r==="object"&&r.enabled===true) add("one-"+(x[6]||x[0]||"expense"),x[0],"Deine Erinnerung für diese einmalige Ausgabe ist fällig.",r.date,r.time);
+  }
+  const installments=Array.isArray(safeState.inst)?safeState.inst:[];
+  for(const x of installments) {
+    if(!Array.isArray(x))continue;
+    const r=x[6];
+    if(r&&typeof r==="object"&&r.enabled===true) {
+      const date=r.date||x[5];
+      add("inst-"+(x[0]||"rate"),x[0],"Deine Zahlungserinnerung ist fällig.",date,r.time);
+    }
+  }
   return out;
 }
 async function run(env) {
