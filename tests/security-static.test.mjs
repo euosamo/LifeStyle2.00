@@ -19,6 +19,8 @@ test("new account password policy and verified-email gate are present", () => {
   assert.match(app, /escapeHTML\(row\[0\]\|\|\x27\x27\)/);
   assert.match(app, /LAYOUT_KEYS=\[\x27fixed\x27,\x27one\x27,\x27installments\x27,\x27goals\x27\]/);
   assert.match(app, /next\.currency=\[\x27EUR\x27,\x27USD\x27,\x27GBP\x27\]/);
+  assert.match(app, /function safeIconClass\(value\)/);
+  assert.match(app, /Object\.prototype\.hasOwnProperty\.call\(pages,state\.page\)/);
 });
 
 test("Cloudflare response headers provide core browser protections", () => {
