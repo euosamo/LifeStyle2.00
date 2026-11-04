@@ -23,4 +23,4 @@ jobs:
       - name: Install test dependencies
         run: npm install --no-save --no-audit --no-fund firebase@latest @firebase/rules-unit-testing@latest firebase-tools@latest
       - name: Test Firestore rules in emulator
-        run: npx firebase emulators:exec --only firestore --project demo-lifestyle-rules "node --test tests/firestore.rules.test.mjs"
+        run: npx firebase emulators:exec --only firestore --project demo-lifestyle-rules "node --test tests/*.test.mjs"
