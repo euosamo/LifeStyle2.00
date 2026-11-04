@@ -219,6 +219,10 @@ function normalizeSavedState(saved,page){
  const visible=next.layoutVisible&&typeof next.layoutVisible==='object'&&!Array.isArray(next.layoutVisible)?next.layoutVisible:{};
  next.layoutVisible=Object.fromEntries(LAYOUT_KEYS.map(key=>[key,typeof visible[key]==='boolean'?visible[key]:true]));
  next.currency=['EUR','USD','GBP'].includes(next.currency)?next.currency:'EUR';
+ next.search=typeof next.search==='string'?next.search.slice(0,100):'';
+ next.filter=['Alle','Einnahmen','Ausgaben'].includes(next.filter)?next.filter:'Alle';
+ next.bookingPeriod=['all','month','previous'].includes(next.bookingPeriod)?next.bookingPeriod:'all';
+ next.bookingSort=['newest','oldest','amount-high','amount-low'].includes(next.bookingSort)?next.bookingSort:'newest';
  next.monthlySalary=Number.isFinite(Number(next.monthlySalary))?Number(next.monthlySalary):0;
  next.userName=typeof next.userName==='string'?next.userName.slice(0,50):'';
  const incoming=next.reminders&&typeof next.reminders==='object'&&!Array.isArray(next.reminders)?next.reminders:{};
