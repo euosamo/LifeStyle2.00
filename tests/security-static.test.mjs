@@ -71,6 +71,14 @@ test("push worker only sends to trusted browser push providers", () => {
   assert.match(worker, /slice\(0,220\)/);
 });
 
+test("push worker public endpoint is read-only and cache-safe", () => {
+  const worker = read("push-worker/src/index.js");
+  assert.match(worker, /request\.method !== "GET"/);
+  assert.match(worker, /"Cache-Control": "no-store"/);
+  assert.match(worker, /endpoint\.username \|\| endpoint\.password/);
+  assert.match(worker, /endpoint\.port && endpoint\.port !== "443"/);
+});
+
 test("Firestore rules require verified ownership and deny unmatched paths", () => {
   const rules = read("firestore.rules");
   assert.match(rules, /request\.auth\.uid == userId/);
