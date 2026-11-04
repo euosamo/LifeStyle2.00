@@ -70,8 +70,20 @@ test("push subscriptions are owner-only and schema-validated", async () => {
   await assertFails(deleteDoc(doc(bob, "users/alice/pushSubscriptions/device1")));
 });
 
+test("verified owners can only read and delete their own push delivery markers", async () => {
+  const alice = env.authenticatedContext("alice", { email_verified: true }).firestore();
+  const bob = env.authenticatedContext("bob", { email_verified: true }).firestore();
+  const marker = doc(alice, "users/alice/pushDeliveries/job1");
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), "users/alice/pushDeliveries/job1"), { status: "sent", createdAt: stamp() });
+  });
+  await assertSucceeds(getDoc(marker));
+  await assertFails(getDoc(doc(bob, "users/alice/pushDeliveries/job1")));
+  await assertFails(setDoc(marker, { status: "tampered" }));
+  await assertSucceeds(deleteDoc(marker));
+});
+
 test("all other Firestore paths remain denied", async () => {
   const db = env.authenticatedContext("alice", { email_verified: true }).firestore();
   await assertFails(setDoc(doc(db, "public/anything"), { value: true }));
-  await assertFails(getDoc(doc(db, "users/alice/pushDeliveries/job1")));
 });
