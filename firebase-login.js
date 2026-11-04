@@ -244,6 +244,7 @@ window.lifestyleDeleteAccount = async function () {
       }
       // Remove the one-time legacy import source as part of an explicit account deletion.
       localStorage.removeItem("lifestyle-finanz-app-v3-empty");
+      localStorage.removeItem("lifestyle-finanz-app-v2");
       localStorage.removeItem("lifestyle-finanz-legacy-imported");
       localStorage.removeItem("lifestyle-finanz-guide-seen");
       localStorage.removeItem("lifestyle-finanz-onboarding-done");
