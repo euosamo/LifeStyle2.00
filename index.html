@@ -209,7 +209,8 @@ const LAYOUT_KEYS=['fixed','one','installments','goals'];
 function normalizeSavedState(saved,page){
  const source=saved&&typeof saved==='object'&&!Array.isArray(saved)?saved:{};
  const next={...defaultState,...source,page};
- next.transactions=Array.isArray(next.transactions)?next.transactions.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)).map(t=>({...t,name:String(t.name??'').slice(0,120),date:String(t.date??'').slice(0,24),category:String(t.category??'').slice(0,60),kind:t.kind==='Einnahmen'?'Einnahmen':'Ausgaben',amount:Number.isFinite(Number(t.amount))?Number(t.amount):0,color:safeIconClass(t.color),icon:String(t.icon??'').slice(0,8)})):[];
+ const safeText=(value,max)=>typeof value==='string'||typeof value==='number'||typeof value==='boolean'?String(value).slice(0,max):'';
+ next.transactions=Array.isArray(next.transactions)?next.transactions.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)).map(t=>({...t,name:safeText(t.name,120),date:safeText(t.date,24),category:safeText(t.category,60),kind:t.kind==='Einnahmen'?'Einnahmen':'Ausgaben',amount:(typeof t.amount==='number'||typeof t.amount==='string')&&Number.isFinite(Number(t.amount))?Number(t.amount):0,color:safeIconClass(t.color),icon:safeText(t.icon,8)})):[];
  for(const key of ['fixed','one','inst','goals','accounts'])next[key]=Array.isArray(next[key])?next[key].filter(Array.isArray):[];
  next.categories=Array.isArray(next.categories)?next.categories.filter(x=>typeof x==='string').slice(0,100):[];
  next.notes=Array.isArray(next.notes)?next.notes.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)).slice(0,500):[];
@@ -223,8 +224,8 @@ function normalizeSavedState(saved,page){
  next.filter=['Alle','Einnahmen','Ausgaben'].includes(next.filter)?next.filter:'Alle';
  next.bookingPeriod=['all','month','previous'].includes(next.bookingPeriod)?next.bookingPeriod:'all';
  next.bookingSort=['newest','oldest','amount-high','amount-low'].includes(next.bookingSort)?next.bookingSort:'newest';
- next.monthlySalary=Number.isFinite(Number(next.monthlySalary))?Number(next.monthlySalary):0;
- next.userName=typeof next.userName==='string'?next.userName.slice(0,50):'';
+ next.monthlySalary=(typeof next.monthlySalary==='number'||typeof next.monthlySalary==='string')&&Number.isFinite(Number(next.monthlySalary))?Number(next.monthlySalary):0;
+ next.userName=safeText(next.userName,50);next.nextPay=safeText(next.nextPay,10);
  const incoming=next.reminders&&typeof next.reminders==='object'&&!Array.isArray(next.reminders)?next.reminders:{};
  next.reminders=Object.fromEntries(['inst','one','goals'].map(key=>{
   const value=incoming[key]&&typeof incoming[key]==='object'&&!Array.isArray(incoming[key])?incoming[key]:{};
@@ -250,7 +251,7 @@ state.reminderFired=state.reminderFired||{};
 function persistState(){if(window.lifestyleCloudReady!==true)return;try{if(window.lifestyleUserStorageKey)localStorage.setItem(window.lifestyleUserStorageKey,JSON.stringify(state));}catch(e){}if(window.lifestyleCloudSave)window.lifestyleCloudSave(state);}
 window.lifestyleGetState=()=>state;
 function head(title,sub='',back=false,plus=''){return `<div class="topline">${back?'<button class="back" onclick="goBack()">‹</button>':''}<div class="headcopy"><h1>${escapeHTML(title)}</h1>${sub?`<p>${escapeHTML(sub)}</p>`:''}</div>${plus?`<button class="circle-btn" onclick="${plus}">＋</button>`:''}</div>`}
-function safeIconClass(value){const allowed=['ic-blue','ic-purple','ic-orange','ic-green','ic-red','green','red','greenbar'];const token=String(value??'');return allowed.includes(token)?token:'ic-blue'}
+function safeIconClass(value){const allowed=['ic-blue','ic-purple','ic-orange','ic-green','ic-red','green','red','greenbar'];const token=typeof value==='string'?value:'';return allowed.includes(token)?token:'ic-blue'}
 function icon(txt,cl){return `<span class="tile-icon ${safeIconClass(cl)}">${escapeHTML(txt)}</span>`}
 function tile(title,amount,sub,ico,cl,page){return `<button class="tile" onclick="navigate('${page}')">${icon(ico,cl)}<span class="chev">›</span><span class="tile-title">${escapeHTML(title)}</span><span class="tile-amount">${escapeHTML(amount)}</span><span class="tile-sub">${escapeHTML(sub)}</span></button>`}
 function tx(t){return `<div class="transaction"><span class="tx-icon ${safeIconClass(t.color)}">${escapeHTML(t.icon||'')}</span><div class="tx-main"><div class="tx-name">${escapeHTML(t.name||'')}</div><div class="tx-date">${escapeHTML(t.date||'')}</div></div><div class="tx-amount ${t.amount>=0?'green':'red'}">${t.amount>=0?'+':''}${euro(t.amount)}</div></div>`}
@@ -258,7 +259,8 @@ function itemCard(row,amount=true){return `<div class="list-card"><div class="tr
 
 function parseGermanAmount(value){
   if(typeof value==='number') return Number.isFinite(value)?value:0;
-  let s=String(value??'').trim().replace(/[^\d,.-]/g,'');
+  if(typeof value!=='string') return 0;
+  let s=value.trim().replace(/[^\d,.-]/g,'');
   if(!s) return 0;
   if(s.includes(',')) s=s.replace(/\./g,'').replace(',','.');
   const n=Number(s);
@@ -447,7 +449,7 @@ async function addInstallment(){let n=await appPrompt('Name der Verpflichtung?')
 async function addGoal(){let n=await appPrompt('Name des Sparziels?');if(!n)return;let a=await appPrompt('Zielbetrag?','1.000,00 €')||'1.000,00 €';state.goals.push([n,a,'0,00 €','0 %','◎','ic-blue']);persistState();render()}
 async function addAccount(){let n=await appPrompt('Name des Kontos?');if(!n)return;state.accounts.push([n,'Girokonto','0,00 €','▣','ic-blue']);render()}
 function parseMoney(v){const s=String(v??'').replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(',','.');const n=Number(s);return Number.isFinite(n)?n:0}
-function escapeHTML(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function escapeHTML(v){const text=typeof v==='string'||typeof v==='number'||typeof v==='boolean'?String(v):'';return text.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function normalizeTypedDate(value){const digits=String(value||'').replace(/\D/g,'').slice(0,8);if(digits.length<=2)return digits;if(digits.length<=4)return digits.slice(0,2)+'.'+digits.slice(2);return digits.slice(0,2)+'.'+digits.slice(2,4)+'.'+digits.slice(4)}
 function validateNextPayInput(){const input=document.getElementById('nextPayInput');const error=document.getElementById('nextPayError');const save=document.getElementById('personalSettingsSave');if(!input||!error||!save)return true;const value=input.value.trim();let message='';if(value&&!toISODate(value))message='Ungültiges Datum. Bitte ein echtes Kalenderdatum im Format TT.MM.JJJJ eingeben.';else if(value&&toISODate(value)<todayISODate())message='Dieses Datum liegt in der Vergangenheit. Bitte wähle heute oder einen zukünftigen Tag.';error.textContent=message;input.classList.toggle('invalid',!!message);input.setAttribute('aria-invalid',message?'true':'false');save.disabled=!!message;return !message}
 function validGermanAmount(value){const s=String(value||'').trim().replace(/\s|€/g,'');return /^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,\d{1,2})?$/.test(s)&&/\d/.test(s)}
