@@ -133,7 +133,7 @@ async function run(env) {
           || host==="updates.push.services.mozilla.com"
           || host==="web.push.apple.com"
           || host.endsWith(".notify.windows.com");
-        if(endpoint.protocol!=="https:" || (endpoint.port && endpoint.port!=="443") || endpoint.username || endpoint.password || !trustedPushHost) {
+        if(endpoint.protocol!=="https:" || (endpoint.port && endpoint.port !== "443") || endpoint.username || endpoint.password || !trustedPushHost) {
           console.warn("Skipping untrusted push endpoint host:",host);
           continue;
         }
