@@ -93,6 +93,17 @@ async function run(env) {
       const payload=JSON.stringify({title:job.title,body:job.body,tag:job.id,url:"/"});
       let success=false;
       for(const s of userSubs) {
+        let endpoint;
+        try { endpoint=new URL(s.subscription.endpoint); } catch (_) { continue; }
+        const host=endpoint.hostname.toLowerCase();
+        const trustedPushHost=host==="fcm.googleapis.com"
+          || host==="updates.push.services.mozilla.com"
+          || host==="web.push.apple.com"
+          || host.endsWith(".notify.windows.com");
+        if(endpoint.protocol!=="https:" || !trustedPushHost) {
+          console.warn("Skipping untrusted push endpoint host:",host);
+          continue;
+        }
         try { await webpush.sendNotification(s.subscription,payload); success=true; sent++; }
         catch(e) { if(e.statusCode===404||e.statusCode===410) { expired++; } else console.error("Push send failed",e.statusCode,e.message); }
       }
