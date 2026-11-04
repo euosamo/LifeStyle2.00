@@ -49,9 +49,11 @@ service cloud.firestore {
       allow delete: if isVerifiedOwner(userId);
     }
 
-    // Zustellmarker werden ausschließlich serverseitig mit Service Account verwaltet.
+    // Nutzer dürfen ihre eigenen Zustellmarker für eine vollständige Kontolöschung lesen und löschen.
+    // Anlegen und Ändern bleibt ausschließlich dem Push-Worker vorbehalten.
     match /users/{userId}/pushDeliveries/{deliveryId} {
-      allow read, write: if false;
+      allow read, delete: if isVerifiedOwner(userId);
+      allow create, update: if false;
     }
 
     // Den Rest der Datenbank standardmäßig sperren.
