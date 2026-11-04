@@ -61,7 +61,14 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || './', self.location.origin).href;
+  let targetUrl;
+  try {
+    targetUrl = new URL(event.notification.data?.url || './', self.location.origin);
+    if (targetUrl.origin !== self.location.origin) targetUrl = new URL('./', self.location.origin);
+  } catch (_) {
+    targetUrl = new URL('./', self.location.origin);
+  }
+  const target = targetUrl.href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of windows) {
