@@ -45,8 +45,8 @@ test("only a verified owner can read and write their own app data", async () => 
 });
 
 test("app data schema rejects unexpected fields and invalid revisions", async () => {
-  const db = env.authenticatedContext("alice", { email_verified: true }).firestore();
-  const path = doc(db, "users/alice/appData/main");
+  const db = env.authenticatedContext("schema-owner", { email_verified: true }).firestore();
+  const path = doc(db, "users/schema-owner/appData/main");
   await assertFails(setDoc(path, { ...validAppData(), admin: true }));
   await assertFails(setDoc(path, { ...validAppData(), revision: -1 }));
   await assertFails(setDoc(path, { ...validAppData(), state: [] }));
