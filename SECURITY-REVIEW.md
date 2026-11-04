@@ -3,10 +3,10 @@
 ## Änderungen in diesem Branch
 
 - Firestore-Datenzugriffe verlangen eine angemeldete, E-Mail-verifizierte UID und beschränken jeden Nutzer auf den eigenen Datenpfad.
-- Firestore-Schreibvorgänge für Finanzdaten und Push-Abonnements werden auf erlaubte Felder und Datentypen geprüft.
+- Firestore-Schreibvorgänge für Finanzdaten und Push-Abonnements werden auf erlaubte Felder und Datentypen geprüft; Push-Endpunkte sind auf bekannte Browser-Push-Anbieter begrenzt, um beliebige ausgehende Anfragen des Workers (SSRF) zu verhindern.
 - Neue Konten benötigen mindestens 12 Zeichen beim Passwort; bestehende Konten können sich weiterhin mit ihrem bisherigen Passwort anmelden.
 - HTTP-Sicherheitsheader werden über Cloudflare-Pages-`_headers` gesetzt.
-- Push-Benachrichtigungen dürfen nur noch zur eigenen App-Origin navigieren.
+- Push-Benachrichtigungen dürfen nur noch zur eigenen App-Origin navigieren; der Push-Worker sendet nur an freigegebene FCM-, Mozilla-, Apple- und Windows-Push-Hosts.
 - Emulator-Tests prüfen Nutzertrennung, E-Mail-Verifizierung, erlaubte Datenformen und standardmäßige Sperren.
 
 ## Was diese Änderungen nicht automatisch erledigen
