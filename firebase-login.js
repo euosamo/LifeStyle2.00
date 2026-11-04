@@ -509,8 +509,12 @@ function showVerificationGate(currentUser) {
       try {
         if (!auth.currentUser) throw new Error("Bitte melde dich erneut an.");
         await reload(auth.currentUser);
-        if (auth.currentUser.emailVerified) window.location.reload();
-        else msg("Die E-Mail ist noch nicht bestätigt. Bitte öffne den Link in der E-Mail und versuche es erneut.");
+        if (auth.currentUser.emailVerified) {
+          await auth.currentUser.getIdToken(true);
+          window.location.reload();
+        } else {
+          msg("Die E-Mail ist noch nicht bestätigt. Bitte öffne den Link in der E-Mail und versuche es erneut.");
+        }
       } catch (e) { msg(authError(e), true); }
     });
     document.getElementById("changeVerificationEmail").addEventListener("click", async () => {
