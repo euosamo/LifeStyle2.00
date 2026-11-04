@@ -9,7 +9,7 @@ const stamp = () => new Date();
 const validAppData = () => ({ state: { balance: 123, transactions: [{ id: "t1" }] }, revision: 1, updatedAt: stamp() });
 const validSubscription = () => ({
   subscription: {
-    endpoint: "https://push.example.test/subscription",
+    endpoint: "https://fcm.googleapis.com/fcm/send/test",
     expirationTime: null,
     keys: { p256dh: "test-p256dh", auth: "test-auth" }
   },
@@ -62,7 +62,7 @@ test("push subscriptions are owner-only and schema-validated", async () => {
   await assertFails(getDoc(doc(bob, "users/alice/pushSubscriptions/device1")));
   await assertFails(setDoc(path, { ...validSubscription(), extra: "not allowed" }));
   const invalidEndpoint = validSubscription();
-  invalidEndpoint.subscription.endpoint = "javascript:alert(1)";
+  invalidEndpoint.subscription.endpoint = "https://evil.example.test/endpoint";
   await assertFails(setDoc(path, invalidEndpoint));
   const invalidKeys = validSubscription();
   invalidKeys.subscription.keys.extra = "not allowed";
