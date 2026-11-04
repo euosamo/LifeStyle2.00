@@ -64,7 +64,8 @@ test("Cloudflare response headers provide core browser protections", () => {
     "X-Frame-Options: DENY",
     "Referrer-Policy:",
     "Permissions-Policy:",
-    "Strict-Transport-Security:"
+    "Strict-Transport-Security:",
+    "Cache-Control: no-cache"
   ]) assert.ok(headers.includes(token), "Missing header or CSP directive: " + token);
 });
 
