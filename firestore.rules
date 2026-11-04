@@ -21,6 +21,7 @@ service cloud.firestore {
           && validAppDataWrite()
           && request.resource.data.revision == 1;
       allow update: if isVerifiedOwner(userId)
+          && resource != null
           && validAppDataWrite()
           && resource.data.get('revision', 0) is int
           && request.resource.data.revision == resource.data.get('revision', 0) + 1;
