@@ -33,9 +33,10 @@ test("new account password policy and verified-email gate are present", () => {
 
 test("main inline application script parses without syntax errors", () => {
   const html = read("index.html");
-  const match = html.match(/<script>([\\s\\S]*?)<\\/script>/);
-  assert.ok(match, "inline app script not found");
-  assert.doesNotThrow(() => new vm.Script(match[1], { filename: "index.html:inline-script" }));
+  const start = html.indexOf("<script>");
+  const end = html.indexOf("</script>", start + 8);
+  assert.ok(start >= 0 && end > start, "inline app script not found");
+  assert.doesNotThrow(() => new vm.Script(html.slice(start + 8, end), { filename: "index.html:inline-script" }));
 });
 
 test("Cloudflare response headers provide core browser protections", () => {
