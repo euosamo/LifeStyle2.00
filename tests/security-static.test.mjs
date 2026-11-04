@@ -27,7 +27,7 @@ test("new account password policy and verified-email gate are present", () => {
   assert.match(app, /safeIconClass\(row\[4\]\)/);
   assert.match(app, /safeIconClass\(x\[4\]\)/);
   assert.match(app, /data-account-name=/);
-  assert.match(app, /escapeHTML\(t\.date\|\|\\x27\\x27\)/);
+  assert.ok(app.includes("escapeHTML(t.date||'')"));
 
 });
 
