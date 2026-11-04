@@ -242,9 +242,13 @@ window.lifestyleDeleteAccount = async function () {
       if (localStorage.getItem("lifestyle-finanz-new-user-uid") === current.uid) {
         localStorage.removeItem("lifestyle-finanz-new-user-uid");
       }
+      // Remove the one-time legacy import source as part of an explicit account deletion.
+      localStorage.removeItem("lifestyle-finanz-app-v3-empty");
+      localStorage.removeItem("lifestyle-finanz-legacy-imported");
+      localStorage.removeItem("lifestyle-finanz-guide-seen");
+      localStorage.removeItem("lifestyle-finanz-onboarding-done");
     } catch (_) {}
     await deleteUser(current);
-    try { localStorage.removeItem("lifestyle-finanz-guide-seen"); localStorage.removeItem("lifestyle-finanz-onboarding-done"); } catch (_) {}
     msg("Dein Konto wurde gelöscht.");
   } catch (e) {
     if (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential") {
