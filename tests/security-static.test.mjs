@@ -31,6 +31,20 @@ test("new account password policy and verified-email gate are present", () => {
 
 });
 
+test("HTML escaping and CSS class allowlist resist hostile stored values", () => {
+  const app = read("index.html");
+  const escapeLine = app.split("\\n").find(line => line.startsWith("function escapeHTML("));
+  const classLine = app.split("\\n").find(line => line.startsWith("function safeIconClass("));
+  assert.ok(escapeLine && classLine, "security helpers must exist");
+  const context = vm.createContext({});
+  vm.runInContext(escapeLine + "; " + classLine + "; globalThis.escapeHTML=escapeHTML; globalThis.safeIconClass=safeIconClass;", context);
+  assert.equal(context.escapeHTML('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
+  assert.equal(context.escapeHTML('"\'&'), '&quot;&#39;&amp;');
+  assert.equal(context.safeIconClass('ic-blue'), 'ic-blue');
+  assert.equal(context.safeIconClass('x" onclick="alert(1)'), 'ic-blue');
+  assert.match(app, /amount:Number\\.isFinite\\(Number\\(t\\.amount\\)\\)\\?Number\\(t\\.amount\\):0/);
+});
+
 test("main inline application script parses without syntax errors", () => {
   const html = read("index.html");
   const start = html.indexOf("<script>");
