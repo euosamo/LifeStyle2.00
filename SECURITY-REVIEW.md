@@ -17,6 +17,7 @@
 4. Die CSP muss auf der tatsächlichen Cloudflare-Pages-Domain im Browser geprüft werden. Das bestehende UI verwendet Inline-Skripte und Inline-Eventhandler; deshalb muss `unsafe-inline` vorerst erlaubt bleiben und ist kein vollständiger XSS-Schutz.
 5. Finanzdaten im Browser-Cache/localStorage sind nicht Ende-zu-Ende verschlüsselt. Cloud-Speicherung über Firestore und HTTPS ist keine Ende-zu-Ende-Verschlüsselung.
 6. Ein vollständiger Browser-/iPhone-Test, ein Test mit zwei getrennten Konten und ein unabhängiger Penetrationstest sind weiterhin erforderlich.
+7. Der GitHub-Branch `main` ist derzeit nicht geschützt (`protected: false`). Vor einem Merge sollte Branch Protection mit Pull-Request-Pflicht, erforderlichen Security-Checks und gesperrtem Force-Push eingerichtet werden. Diese Repository-Einstellung wurde nicht durch den Code-Branch geändert.
 
 ## Release-Regel
 
