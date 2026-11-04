@@ -14,6 +14,8 @@ test("new account password policy and verified-email gate are present", () => {
   assert.match(rules, /request\.auth\.token\.email_verified/);
   assert.match(auth, /deleteOwnCollection\(current\.uid, "pushSubscriptions"\)/);
   assert.match(auth, /deleteOwnCollection\(current\.uid, "pushDeliveries"\)/);
+  assert.match(auth, /window\.appPrompt\("Bitte gib zur Sicherheitsprüfung dein Passwort ein:", "", "password"\)/);
+  assert.match(read("index.html"), /safeInputType=inputType===\x27password\x27\?\x27password\x27:\x27text\x27/);
   assert.match(auth, /localStorage\.removeItem\("lifestyle-finanz-app-v3-empty"\)/);
   assert.match(auth, /localStorage\.removeItem\("lifestyle-finanz-app-v2"\)/);
   const app = read("index.html");
