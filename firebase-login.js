@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, browserLocalPersistence, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, limit, writeBatch, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBsklHgKgsiwEmY_PhmLxhYTdiGlbXpCqc",
@@ -133,6 +133,18 @@ document.getElementById("authLogout").addEventListener("click", async () => {
 
 const ref = uid => doc(db, "users", uid, "appData", "main");
 
+async function deleteOwnCollection(uid, collectionName) {
+  const ownCollection = collection(db, "users", uid, collectionName);
+  while (true) {
+    const page = await getDocs(query(ownCollection, limit(400)));
+    if (page.empty) break;
+    const batch = writeBatch(db);
+    page.docs.forEach(item => batch.delete(item.ref));
+    await batch.commit();
+    if (page.size < 400) break;
+  }
+}
+
 // Öffentlicher VAPID-Schlüssel. Wird nach dem Eintragen des erzeugten Schlüssels ersetzt.
 const LIFESTYLE_VAPID_PUBLIC_KEY = "BGkgIcW-ZisIhF1RcwBqdnmyOgtUcMYda9AhJyfO2J0-FKAsw04VMpO5TDjXRV-vRlu6gZWSE1Fp29WeIr-7PtE";
 function decodeVapidKey(value) {
@@ -208,9 +220,17 @@ window.lifestyleDeleteAccount = async function () {
     activeUid = null;
     lastCloudState = null;
     cloudRevision = 0;
-    msg("Gespeicherte Finanzdaten werden gelöscht …");
+    msg("Gespeicherte Finanzdaten und Geräteverknüpfungen werden gelöscht …");
+    // Remove every user-owned subcollection in bounded batches before deleting the account.
+    // Firestore rules permit this only for the currently verified owner.
+    await deleteOwnCollection(current.uid, "pushSubscriptions");
+    await deleteOwnCollection(current.uid, "pushDeliveries");
     await deleteDoc(ref(current.uid));
-    try { localStorage.removeItem("lifestyle-finanz-app-user-" + current.uid); } catch (_) {}
+    try {
+      localStorage.removeItem("lifestyle-finanz-app-user-" + current.uid);
+      localStorage.removeItem("lifestyle-finanz-app-user-" + current.uid + "-saved-at");
+      localStorage.removeItem("lifestyle-finanz-app-user-" + current.uid + "-pending-cloud-save");
+    } catch (_) {}
     await deleteUser(current);
     try { localStorage.removeItem("lifestyle-finanz-guide-seen"); localStorage.removeItem("lifestyle-finanz-onboarding-done"); } catch (_) {}
     msg("Dein Konto wurde gelöscht.");
