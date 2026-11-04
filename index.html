@@ -209,7 +209,7 @@ const LAYOUT_KEYS=['fixed','one','installments','goals'];
 function normalizeSavedState(saved,page){
  const source=saved&&typeof saved==='object'&&!Array.isArray(saved)?saved:{};
  const next={...defaultState,...source,page};
- next.transactions=Array.isArray(next.transactions)?next.transactions.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)):[];
+ next.transactions=Array.isArray(next.transactions)?next.transactions.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)).map(t=>({...t,name:String(t.name??'').slice(0,120),date:String(t.date??'').slice(0,24),category:String(t.category??'').slice(0,60),kind:t.kind==='Einnahmen'?'Einnahmen':'Ausgaben',amount:Number.isFinite(Number(t.amount))?Number(t.amount):0,color:safeIconClass(t.color),icon:String(t.icon??'').slice(0,8)})):[];
  for(const key of ['fixed','one','inst','goals','accounts'])next[key]=Array.isArray(next[key])?next[key].filter(Array.isArray):[];
  next.categories=Array.isArray(next.categories)?next.categories.filter(x=>typeof x==='string').slice(0,100):[];
  next.notes=Array.isArray(next.notes)?next.notes.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)).slice(0,500):[];
