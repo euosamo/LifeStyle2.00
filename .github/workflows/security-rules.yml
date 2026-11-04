@@ -23,7 +23,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: 24.12.0
       - name: Install test dependencies
         run: npm install --no-save --no-audit --no-fund firebase@latest @firebase/rules-unit-testing@latest firebase-tools@latest
       - name: Syntax-check runtime modules
