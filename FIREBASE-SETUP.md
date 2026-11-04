@@ -17,7 +17,9 @@
 3. **Authentication → Settings → Password policy:** Mindestlänge 12 Zeichen festlegen und Richtlinie serverseitig erzwingen. Die Prüfung im Browser allein ist umgehbar.
 4. **Authentication → Settings → Authorized domains:** `lifestyle2-00.pages.dev` und nur tatsächlich verwendete eigene Domains eintragen. Nicht benötigte Domains entfernen.
 5. Prüfen, dass E-Mail-Verifizierung für neue Konten verlangt wird.
-6. **Firestore Database:** Die Regeln aus `firestore.rules` veröffentlichen und danach die aktiven Regeln in der Firebase Console kontrollieren.
+6. **Google Cloud → APIs & Dienste → Anmeldedaten:** Den Firebase-Web-API-Key auf HTTP-Referrer der tatsächlich verwendeten App-Domains begrenzen. API-Beschränkungen erst nach einem Test mit allen benötigten Firebase-APIs setzen, damit Auth und Firestore nicht versehentlich blockiert werden.
+7. **App Check:** Für die Web-App reCAPTCHA Enterprise oder einen geeigneten Web-Provider einrichten, den App-Check-Client aktivieren und danach Firestore Enforcement einschalten. Erst nach erfolgreichem Test erzwingen, damit bestehende Nutzer nicht ausgesperrt werden.
+8. **Firestore Database:** Die Regeln aus `firestore.rules` veröffentlichen und danach die aktiven Regeln in der Firebase Console kontrollieren.
 
 Regeln veröffentlichen (mit einem autorisierten Firebase-CLI-Konto):
 ```bash
