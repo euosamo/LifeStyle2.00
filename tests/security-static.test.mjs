@@ -50,6 +50,9 @@ test("push worker only sends to trusted browser push providers", () => {
   assert.match(worker, /host==="fcm\.googleapis\.com"/);
   assert.match(worker, /host==="web\.push\.apple\.com"/);
   assert.match(worker, /host\.endsWith\("\.notify\.windows\.com"\)/);
+  assert.match(worker, /Array\.isArray\(safeState\.notes\)/);
+  assert.match(worker, /localParts\(now,"Europe\/Berlin"\)/);
+  assert.match(worker, /slice\(0,220\)/);
 });
 
 test("Firestore rules require verified ownership and deny unmatched paths", () => {
