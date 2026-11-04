@@ -205,7 +205,39 @@ button, input, select, textarea { max-width:100%; }
 const euro=n=>n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
 let state={page:'home',month:0,filter:'Alle',search:'',bookingFilterOpen:false,bookingPeriod:'all',bookingSort:'newest',fixedMonth:false,oneAll:false,instOpen:false,transactions:[],fixed:[],one:[],inst:[],goals:[],accounts:[],notes:[],categories:[],layoutOrder:['fixed','one','installments','goals'],layoutVisible:{fixed:true,one:true,installments:true,goals:true},currency:'EUR',pushPromptSeen:false};
 const defaultState={...state};
-window.lifestyleApplyState=function(saved,options={}){const currentPage=state.page||'home';state={...defaultState,...(saved&&typeof saved==='object'?saved:{}),page:currentPage};state.monthlySalary=Number(state.monthlySalary)||0;state.userName=state.userName||'';state.reminders=state.reminders||{inst:{enabled:false,day:1,time:'09:00'},one:{enabled:false,day:1,time:'09:00'},goals:{enabled:false,day:1,time:'09:00'}};state.notes=(state.notes||[]).map(n=>({...n,reminder:n.reminder||{enabled:false,date:'',time:'09:00'}}));state.one=(state.one||[]).map((x,i)=>{if(!x[5]||typeof x[5]!=='object')x[5]={enabled:false,date:'',time:'09:00'};if(!x[6])x[6]='one-migrated-'+i+'-'+String(x[0]||'ausgabe');return x;});state.reminderFired=state.reminderFired||{};if(options.render!==false)render();};
+const LAYOUT_KEYS=['fixed','one','installments','goals'];
+function normalizeSavedState(saved,page){
+ const source=saved&&typeof saved==='object'&&!Array.isArray(saved)?saved:{};
+ const next={...defaultState,...source,page};
+ next.transactions=Array.isArray(next.transactions)?next.transactions.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)):[];
+ for(const key of ['fixed','one','inst','goals','accounts'])next[key]=Array.isArray(next[key])?next[key].filter(Array.isArray):[];
+ next.categories=Array.isArray(next.categories)?next.categories.filter(x=>typeof x==='string').slice(0,100):[];
+ next.notes=Array.isArray(next.notes)?next.notes.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)).slice(0,500):[];
+ const order=Array.isArray(next.layoutOrder)?next.layoutOrder.filter(x=>LAYOUT_KEYS.includes(x)):[];
+ next.layoutOrder=[...new Set(order)];
+ for(const key of LAYOUT_KEYS)if(!next.layoutOrder.includes(key))next.layoutOrder.push(key);
+ const visible=next.layoutVisible&&typeof next.layoutVisible==='object'&&!Array.isArray(next.layoutVisible)?next.layoutVisible:{};
+ next.layoutVisible=Object.fromEntries(LAYOUT_KEYS.map(key=>[key,typeof visible[key]==='boolean'?visible[key]:true]));
+ next.currency=['EUR','USD','GBP'].includes(next.currency)?next.currency:'EUR';
+ next.monthlySalary=Number.isFinite(Number(next.monthlySalary))?Number(next.monthlySalary):0;
+ next.userName=typeof next.userName==='string'?next.userName.slice(0,50):'';
+ const incoming=next.reminders&&typeof next.reminders==='object'&&!Array.isArray(next.reminders)?next.reminders:{};
+ next.reminders=Object.fromEntries(['inst','one','goals'].map(key=>{
+  const value=incoming[key]&&typeof incoming[key]==='object'&&!Array.isArray(incoming[key])?incoming[key]:{};
+  const day=Number(value.day);
+  const time=typeof value.time==='string'&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value.time)?value.time:'09:00';
+  return [key,{enabled:value.enabled===true,day:Number.isInteger(day)?Math.min(31,Math.max(1,day)):1,time}];
+ }));
+ next.reminderFired=next.reminderFired&&typeof next.reminderFired==='object'&&!Array.isArray(next.reminderFired)?next.reminderFired:{};
+ return next;
+}
+window.lifestyleApplyState=function(saved,options={}){
+ const currentPage=state.page||'home';
+ state=normalizeSavedState(saved,currentPage);
+ state.notes=state.notes.map(n=>({...n,reminder:n.reminder&&typeof n.reminder==='object'?n.reminder:{enabled:false,date:'',time:'09:00'}}));
+ state.one=state.one.map((x,i)=>{if(!x[5]||typeof x[5]!=='object'||Array.isArray(x[5]))x[5]={enabled:false,date:'',time:'09:00'};if(!x[6])x[6]='one-migrated-'+i+'-'+String(x[0]||'ausgabe');return x;});
+ if(options.render!==false)render();
+};
 state.monthlySalary=Number(state.monthlySalary)||0;state.userName=state.userName||'';
 state.reminders=state.reminders||{inst:{enabled:false,day:1,time:'09:00'},one:{enabled:false,day:1,time:'09:00'},goals:{enabled:false,day:1,time:'09:00'}};
 state.notes=(state.notes||[]).map(n=>({...n,reminder:n.reminder||{enabled:false,date:'',time:'09:00'}}));
