@@ -223,13 +223,25 @@ window.lifestyleDeleteAccount = async function () {
     msg("Gespeicherte Finanzdaten und Geräteverknüpfungen werden gelöscht …");
     // Remove every user-owned subcollection in bounded batches before deleting the account.
     // Firestore rules permit this only for the currently verified owner.
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration();
+      const subscription = await registration?.pushManager?.getSubscription();
+      if (subscription) await subscription.unsubscribe();
+    } catch (pushCleanupError) {
+      console.warn("[Lifestyle] Browser push subscription cleanup skipped:", pushCleanupError);
+    }
     await deleteOwnCollection(current.uid, "pushSubscriptions");
     await deleteOwnCollection(current.uid, "pushDeliveries");
     await deleteDoc(ref(current.uid));
     try {
-      localStorage.removeItem("lifestyle-finanz-app-user-" + current.uid);
-      localStorage.removeItem("lifestyle-finanz-app-user-" + current.uid + "-saved-at");
-      localStorage.removeItem("lifestyle-finanz-app-user-" + current.uid + "-pending-cloud-save");
+      const prefix = "lifestyle-finanz-app-user-" + current.uid;
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) localStorage.removeItem(key);
+      }
+      if (localStorage.getItem("lifestyle-finanz-new-user-uid") === current.uid) {
+        localStorage.removeItem("lifestyle-finanz-new-user-uid");
+      }
     } catch (_) {}
     await deleteUser(current);
     try { localStorage.removeItem("lifestyle-finanz-guide-seen"); localStorage.removeItem("lifestyle-finanz-onboarding-done"); } catch (_) {}
