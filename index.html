@@ -384,11 +384,11 @@ function chooseFrequency(initial='Monatlich'){return new Promise(resolve=>{const
 function showToast(s){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;z-index:100;bottom:82px;left:50%;transform:translateX(-50%);background:#173451;border:1px solid #2b5277;border-radius:12px;padding:11px 15px;font-size:12px;box-shadow:0 6px 25px #0008';document.body.appendChild(t)}t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',1800)}
 
 
-function appPrompt(message,initial=''){
+function appPrompt(message,initial='',inputType='text'){
  return new Promise(resolve=>{
   const wrap=document.createElement('div');wrap.className='lifestyle-prompt-backdrop';
   const isLong=/Notiztext|Text/i.test(String(message));const isMoney=/Betrag|gespart|monatlich/i.test(String(message));if(isMoney)initial=String(initial??'').replace(/\s*€/g,'').trim();
-  const field=isLong?`<textarea class="prompt-input">${escapeHTML(initial??'')}</textarea>`:`<div class="prompt-field ${isMoney?'money':''}"><input class="prompt-input" type="text" inputmode="${isMoney?'decimal':'text'}" value="${escapeHTML(initial??'')}">${isMoney?'<span class="prompt-euro">€</span>':''}</div>`;
+  const safeInputType=inputType==='password'?'password':'text';const field=isLong?`<textarea class="prompt-input">${escapeHTML(initial??'')}</textarea>`:`<div class="prompt-field ${isMoney?'money':''}"><input class="prompt-input" type="${safeInputType}" autocomplete="${safeInputType==='password'?'current-password':'off'}" inputmode="${isMoney?'decimal':'text'}" value="${escapeHTML(initial??'')}">${isMoney?'<span class="prompt-euro">€</span>':''}</div>`;
   wrap.innerHTML=`<section class="lifestyle-prompt" role="dialog" aria-modal="true"><h3>${escapeHTML(message)}</h3>${field}<div class="prompt-actions"><button type="button" class="cancel">Abbrechen</button><button type="button" class="confirm">Speichern</button></div></section>`;
   document.body.appendChild(wrap);const input=wrap.querySelector('.prompt-input');const finish=value=>{wrap.remove();resolve(value)};
   wrap.querySelector('.cancel').addEventListener('click',()=>finish(null));wrap.querySelector('.confirm').addEventListener('click',()=>finish(input.value));wrap.addEventListener('click',e=>{if(e.target===wrap)finish(null)});input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!isLong){e.preventDefault();finish(input.value)}if(e.key==='Escape')finish(null)});setTimeout(()=>{input.focus();if(input.select)input.select()},60);
