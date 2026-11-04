@@ -9,7 +9,8 @@ test("new account password policy and verified-email gate are present", () => {
   assert.match(auth, /password\.length < 12/);
   assert.match(auth, /passwordInput\.minLength = reg \? 12 : 6/);
   assert.match(auth, /if \(!user\.emailVerified\)/);
-  assert.match(auth, /request\.auth\.token\.email_verified/);
+  const rules = read("firestore.rules");
+  assert.match(rules, /request\.auth\.token\.email_verified/);
 });
 
 test("Cloudflare response headers provide core browser protections", () => {
