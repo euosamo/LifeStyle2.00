@@ -54,8 +54,8 @@ test("app data schema rejects unexpected fields and invalid revisions", async ()
 });
 
 test("app data revision must increase exactly one step", async () => {
-  const db = env.authenticatedContext("alice", { email_verified: true }).firestore();
-  const path = doc(db, "users/alice/appData/main");
+  const db = env.authenticatedContext("revision-owner", { email_verified: true }).firestore();
+  const path = doc(db, "users/revision-owner/appData/main");
   await assertSucceeds(setDoc(path, validAppData()));
   await assertSucceeds(setDoc(path, { ...validAppData(), revision: 2 }));
   await assertFails(setDoc(path, { ...validAppData(), revision: 4 }));
