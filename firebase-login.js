@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, browserLocalPersistence, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, limit, writeBatch, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBsklHgKgsiwEmY_PhmLxhYTdiGlbXpCqc",
@@ -41,12 +41,19 @@ function formMode() {
   document.getElementById("authSubmit").textContent = reg ? "Kostenlos registrieren" : "Anmelden";
   document.getElementById("authSwitch").textContent = reg ? "Ich habe bereits ein Konto" : "Neues Konto erstellen";
   document.getElementById("authForgot").hidden = reg;
+  const passwordInput = document.getElementById("authPassword");
+  passwordInput.minLength = reg ? 12 : 6;
+  passwordInput.autocomplete = reg ? "new-password" : "current-password";
+  passwordInput.setAttribute("aria-describedby", "authPasswordHint");
+  const hint = document.getElementById("authPasswordHint");
+  if (hint) hint.textContent = reg ? "Mindestens 12 Zeichen verwenden." : "";
   msg("");
 }
 function authError(e) {
   const errors = {
     "auth/invalid-email": "Bitte eine gültige E-Mail-Adresse eingeben.",
-    "auth/weak-password": "Das Passwort muss mindestens 6 Zeichen haben.",
+    "auth/weak-password": "Bitte verwende ein stärkeres Passwort mit mindestens 12 Zeichen.",
+    "lifestyle/weak-password": "Bitte verwende ein Passwort mit mindestens 12 Zeichen.",
     "auth/email-already-in-use": "Diese E-Mail ist bereits registriert. Bitte anmelden.",
     "auth/invalid-credential": "E-Mail oder Passwort stimmt nicht.",
     "auth/user-not-found": "Für diese E-Mail gibt es noch kein Konto. Bitte registrieren.",
@@ -79,6 +86,7 @@ document.getElementById("authForm").addEventListener("submit", async e => {
   try {
     if (!auth) throw new Error("Firebase ist nicht gestartet.");
     if (mode === "register") {
+      if (password.length < 12) throw Object.assign(new Error("Bitte verwende ein Passwort mit mindestens 12 Zeichen."), { code: "lifestyle/weak-password" });
       const credential = await createUserWithEmailAndPassword(auth, email, password);
       try { localStorage.setItem("lifestyle-finanz-new-user-uid", credential.user.uid); } catch (_) {}
       await sendEmailVerification(credential.user);
@@ -124,6 +132,18 @@ document.getElementById("authLogout").addEventListener("click", async () => {
 
 
 const ref = uid => doc(db, "users", uid, "appData", "main");
+
+async function deleteOwnCollection(uid, collectionName) {
+  const ownCollection = collection(db, "users", uid, collectionName);
+  while (true) {
+    const page = await getDocs(query(ownCollection, limit(400)));
+    if (page.empty) break;
+    const batch = writeBatch(db);
+    page.docs.forEach(item => batch.delete(item.ref));
+    await batch.commit();
+    if (page.size < 400) break;
+  }
+}
 
 // Öffentlicher VAPID-Schlüssel. Wird nach dem Eintragen des erzeugten Schlüssels ersetzt.
 const LIFESTYLE_VAPID_PUBLIC_KEY = "BGkgIcW-ZisIhF1RcwBqdnmyOgtUcMYda9AhJyfO2J0-FKAsw04VMpO5TDjXRV-vRlu6gZWSE1Fp29WeIr-7PtE";
@@ -186,7 +206,7 @@ window.lifestyleDeleteAccount = async function () {
   const current = auth.currentUser;
   const confirmed = await window.appConfirm("Möchtest du dein Lifestyle-Konto wirklich dauerhaft löschen? Deine gespeicherten Finanzdaten und dein Login werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.");
   if (!confirmed) return;
-  const password = await window.appPrompt("Bitte gib zur Sicherheitsprüfung dein Passwort ein:");
+  const password = await window.appPrompt("Bitte gib zur Sicherheitsprüfung dein Passwort ein:", "", "password");
   if (password === null || !password) {
     msg("Kontolöschung abgebrochen. Zur Löschung ist eine erneute Sicherheitsprüfung nötig.");
     return;
@@ -200,11 +220,36 @@ window.lifestyleDeleteAccount = async function () {
     activeUid = null;
     lastCloudState = null;
     cloudRevision = 0;
-    msg("Gespeicherte Finanzdaten werden gelöscht …");
+    msg("Gespeicherte Finanzdaten und Geräteverknüpfungen werden gelöscht …");
+    // Remove every user-owned subcollection in bounded batches before deleting the account.
+    // Firestore rules permit this only for the currently verified owner.
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration();
+      const subscription = await registration?.pushManager?.getSubscription();
+      if (subscription) await subscription.unsubscribe();
+    } catch (pushCleanupError) {
+      console.warn("[Lifestyle] Browser push subscription cleanup skipped:", pushCleanupError);
+    }
+    await deleteOwnCollection(current.uid, "pushSubscriptions");
+    await deleteOwnCollection(current.uid, "pushDeliveries");
     await deleteDoc(ref(current.uid));
-    try { localStorage.removeItem("lifestyle-finanz-app-user-" + current.uid); } catch (_) {}
+    try {
+      const prefix = "lifestyle-finanz-app-user-" + current.uid;
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) localStorage.removeItem(key);
+      }
+      if (localStorage.getItem("lifestyle-finanz-new-user-uid") === current.uid) {
+        localStorage.removeItem("lifestyle-finanz-new-user-uid");
+      }
+      // Remove the one-time legacy import source as part of an explicit account deletion.
+      localStorage.removeItem("lifestyle-finanz-app-v3-empty");
+      localStorage.removeItem("lifestyle-finanz-app-v2");
+      localStorage.removeItem("lifestyle-finanz-legacy-imported");
+      localStorage.removeItem("lifestyle-finanz-guide-seen");
+      localStorage.removeItem("lifestyle-finanz-onboarding-done");
+    } catch (_) {}
     await deleteUser(current);
-    try { localStorage.removeItem("lifestyle-finanz-guide-seen"); localStorage.removeItem("lifestyle-finanz-onboarding-done"); } catch (_) {}
     msg("Dein Konto wurde gelöscht.");
   } catch (e) {
     if (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential") {
@@ -469,8 +514,12 @@ function showVerificationGate(currentUser) {
       try {
         if (!auth.currentUser) throw new Error("Bitte melde dich erneut an.");
         await reload(auth.currentUser);
-        if (auth.currentUser.emailVerified) window.location.reload();
-        else msg("Die E-Mail ist noch nicht bestätigt. Bitte öffne den Link in der E-Mail und versuche es erneut.");
+        if (auth.currentUser.emailVerified) {
+          await auth.currentUser.getIdToken(true);
+          window.location.reload();
+        } else {
+          msg("Die E-Mail ist noch nicht bestätigt. Bitte öffne den Link in der E-Mail und versuche es erneut.");
+        }
       } catch (e) { msg(authError(e), true); }
     });
     document.getElementById("changeVerificationEmail").addEventListener("click", async () => {
