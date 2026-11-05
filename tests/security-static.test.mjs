@@ -103,7 +103,8 @@ test("Firestore rules require verified ownership and deny unmatched paths", () =
   assert.match(rules, /request\.auth\.uid == userId/);
   assert.match(rules, /request\.auth\.token\.email_verified == true/);
   assert.match(rules, /request\.resource\.data\.revision == 1/);
-  assert.match(rules, /request\.resource\.data\.revision == resource\.data\.get\('revision', 0\) \+ 1/);
+  assert.match(rules, /request\.resource\.data\.revision == resource\.data\.revision \+ 1/);
   assert.match(rules, /match \/\{document=\*\*\}/);
   assert.match(rules, /allow read, write: if false/);
 });
+

@@ -7,66 +7,180 @@ service cloud.firestore {
           && request.auth.token.email_verified == true;
     }
 
+    function validReminderArea(reminders, area) {
+      return reminders[area] is map
+          && reminders[area].keys().hasOnly(['enabled', 'day', 'time'])
+          && reminders[area].keys().hasAll(['enabled', 'day', 'time'])
+          && reminders[area].enabled is bool
+          && reminders[area].day is int
+          && reminders[area].day >= 1
+          && reminders[area].day <= 31
+          && reminders[area].time is string
+          && reminders[area].time.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+    }
+
+    function validAppState(state) {
+      return state is map
+          // Keys mirror the normalized state in index.html. Keep new persisted
+          // fields explicit here so arbitrary top-level data cannot accumulate.
+          && state.keys().hasOnly([
+            'page', 'month', 'filter', 'search', 'bookingFilterOpen',
+            'bookingPeriod', 'bookingSort', 'fixedMonth', 'oneAll', 'instOpen',
+            'transactions', 'fixed', 'one', 'inst', 'goals', 'accounts', 'notes',
+            'categories', 'layoutOrder', 'layoutVisible', 'currency',
+            'pushPromptSeen', 'guideSeen', 'onboardingComplete', 'reminders',
+            'reminderFired', 'monthlySalary', 'userName', 'nextPay', 'nextPayDay'
+          ])
+          && state.keys().hasAll([
+            'page', 'month', 'filter', 'search', 'bookingFilterOpen',
+            'bookingPeriod', 'bookingSort', 'fixedMonth', 'oneAll', 'instOpen',
+            'transactions', 'fixed', 'one', 'inst', 'goals', 'accounts', 'notes',
+            'categories', 'layoutOrder', 'layoutVisible', 'currency',
+            'pushPromptSeen', 'reminders', 'monthlySalary', 'userName', 'nextPay'
+          ])
+          && state.size() <= 29
+          && state.page is string
+          && state.page.size() <= 32
+          && state.month is int
+          && state.month >= -1
+          && state.month <= 1
+          && state.filter in ['Alle', 'Einnahmen', 'Ausgaben']
+          && state.search is string
+          && state.search.size() <= 100
+          && state.bookingFilterOpen is bool
+          && state.bookingPeriod in ['all', 'month', 'previous']
+          && state.bookingSort in ['newest', 'oldest', 'amount-high', 'amount-low']
+          && state.fixedMonth is bool
+          && state.oneAll is bool
+          && state.instOpen is bool
+          && state.transactions is list
+          && state.transactions.size() <= 10000
+          && state.fixed is list
+          && state.fixed.size() <= 2000
+          && state.one is list
+          && state.one.size() <= 2000
+          && state.inst is list
+          && state.inst.size() <= 2000
+          && state.goals is list
+          && state.goals.size() <= 2000
+          && state.accounts is list
+          && state.accounts.size() <= 2000
+          && state.notes is list
+          && state.notes.size() <= 500
+          && state.categories is list
+          && state.categories.size() <= 100
+          && state.layoutOrder is list
+          && state.layoutOrder.size() == 4
+          && state.layoutOrder.hasOnly(['fixed', 'one', 'installments', 'goals'])
+          && state.layoutVisible is map
+          && state.layoutVisible.keys().hasOnly(['fixed', 'one', 'installments', 'goals'])
+          && state.layoutVisible.keys().hasAll(['fixed', 'one', 'installments', 'goals'])
+          && state.layoutVisible.fixed is bool
+          && state.layoutVisible.one is bool
+          && state.layoutVisible.installments is bool
+          && state.layoutVisible.goals is bool
+          && state.currency in ['EUR', 'USD', 'GBP']
+          && state.pushPromptSeen is bool
+          && state.reminders is map
+          && state.reminders.keys().hasOnly(['inst', 'one', 'goals'])
+          && state.reminders.keys().hasAll(['inst', 'one', 'goals'])
+          && validReminderArea(state.reminders, 'inst')
+          && validReminderArea(state.reminders, 'one')
+          && validReminderArea(state.reminders, 'goals')
+          && state.monthlySalary is number
+          && state.monthlySalary >= 0
+          && state.monthlySalary <= 1000000000
+          && state.userName is string
+          && state.userName.size() <= 50
+          && state.nextPay is string
+          && state.nextPay.size() <= 10
+          && (!('guideSeen' in state) || state.guideSeen is bool)
+          && (!('onboardingComplete' in state) || state.onboardingComplete is bool)
+          && (!('reminderFired' in state) || state.reminderFired is map)
+          && (!('nextPayDay' in state)
+              || state.nextPayDay == null
+              || (state.nextPayDay is int && state.nextPayDay >= 1 && state.nextPayDay <= 31));
+    }
+
+    function validAppDataWrite(documentId) {
+      return documentId == 'main'
+          && request.resource.data.keys().hasOnly(['state', 'revision', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['state', 'revision', 'updatedAt'])
+          && validAppState(request.resource.data.state)
+          && request.resource.data.revision is int
+          && request.resource.data.revision >= 1
+          && request.resource.data.revision <= 2147483647
+          && request.resource.data.updatedAt is timestamp
+          && request.resource.data.updatedAt == request.time;
+    }
+
+    function validPushSubscription(subscriptionId, data) {
+      return subscriptionId.matches('^[0-9a-f]{40}$')
+          && data.keys().hasOnly(['subscription', 'timezone', 'userAgent', 'updatedAt'])
+          && data.keys().hasAll(['subscription', 'timezone', 'userAgent', 'updatedAt'])
+          && data.subscription is map
+          && data.subscription.keys().hasOnly(['endpoint', 'expirationTime', 'keys'])
+          && data.subscription.keys().hasAll(['endpoint', 'keys'])
+          && data.subscription.endpoint is string
+          && data.subscription.endpoint.matches('^https://(fcm\\.googleapis\\.com|updates\\.push\\.services\\.mozilla\\.com|web\\.push\\.apple\\.com|[a-z0-9-]+\\.notify\\.windows\\.com)/.*')
+          && data.subscription.endpoint.size() <= 2048
+          && data.subscription.keys is map
+          && data.subscription.keys.keys().hasOnly(['p256dh', 'auth'])
+          && data.subscription.keys.keys().hasAll(['p256dh', 'auth'])
+          && data.subscription.keys.p256dh is string
+          && data.subscription.keys.p256dh.size() >= 8
+          && data.subscription.keys.p256dh.size() <= 256
+          && data.subscription.keys.p256dh.matches('^[A-Za-z0-9_-]+$')
+          && data.subscription.keys.auth is string
+          && data.subscription.keys.auth.size() >= 8
+          && data.subscription.keys.auth.size() <= 256
+          && data.subscription.keys.auth.matches('^[A-Za-z0-9_-]+$')
+          && data.timezone is string
+          && data.timezone.size() >= 1
+          && data.timezone.size() <= 64
+          && data.timezone.matches('^[A-Za-z0-9_+.-]+(/[A-Za-z0-9_+.-]+)*$')
+          && data.userAgent is string
+          && data.userAgent.size() <= 180
+          && data.updatedAt is timestamp
+          && data.updatedAt == request.time
+          && (!('expirationTime' in data.subscription)
+              || data.subscription.expirationTime == null
+              || (data.subscription.expirationTime is number
+                  && data.subscription.expirationTime >= 0));
+    }
+
     match /users/{userId}/appData/{documentId} {
       allow read: if isVerifiedOwner(userId) && documentId == 'main';
-      function validAppDataWrite() {
-        return documentId == 'main'
-            && request.resource.data.keys().hasOnly(['state', 'revision', 'updatedAt'])
-            && request.resource.data.keys().hasAll(['state', 'revision', 'updatedAt'])
-            && request.resource.data.state is map
-            && request.resource.data.revision is int
-            && request.resource.data.updatedAt is timestamp;
-      }
       allow create: if isVerifiedOwner(userId)
-          && validAppDataWrite()
+          && validAppDataWrite(documentId)
           && request.resource.data.revision == 1;
       allow update: if isVerifiedOwner(userId)
-          && resource != null
-          && validAppDataWrite()
-          && resource.data.get('revision', 0) is int
-          && request.resource.data.revision == resource.data.get('revision', 0) + 1;
+          && validAppDataWrite(documentId)
+          && resource.data.revision is int
+          && resource.data.revision >= 1
+          && resource.data.revision < 2147483647
+          && request.resource.data.revision == resource.data.revision + 1;
       allow delete: if isVerifiedOwner(userId) && documentId == 'main';
     }
 
     match /users/{userId}/pushSubscriptions/{subscriptionId} {
       allow read: if isVerifiedOwner(userId);
       allow create, update: if isVerifiedOwner(userId)
-          && request.resource.data.keys().hasOnly(['subscription', 'timezone', 'userAgent', 'updatedAt'])
-          && request.resource.data.keys().hasAll(['subscription', 'timezone', 'userAgent', 'updatedAt'])
-          && request.resource.data.subscription is map
-          && request.resource.data.subscription.keys().hasOnly(['endpoint', 'expirationTime', 'keys'])
-          && request.resource.data.subscription.keys().hasAll(['endpoint', 'keys'])
-          && request.resource.data.subscription.endpoint is string
-          && request.resource.data.subscription.endpoint.matches('^https://(fcm\\.googleapis\\.com|updates\\.push\\.services\\.mozilla\\.com|web\\.push\\.apple\\.com|[a-z0-9-]+\\.notify\\.windows\\.com)/.*')
-          && request.resource.data.subscription.endpoint.size() <= 2048
-          && request.resource.data.subscription.keys is map
-          && request.resource.data.subscription.keys.keys().hasOnly(['p256dh', 'auth'])
-          && request.resource.data.subscription.keys.keys().hasAll(['p256dh', 'auth'])
-          && request.resource.data.subscription.keys.p256dh is string
-          && request.resource.data.subscription.keys.p256dh.size() <= 256
-          && request.resource.data.subscription.keys.auth is string
-          && request.resource.data.subscription.keys.auth.size() <= 256
-          && request.resource.data.timezone is string
-          && request.resource.data.timezone.size() <= 64
-          && request.resource.data.userAgent is string
-          && request.resource.data.userAgent.size() <= 180
-          && request.resource.data.updatedAt is timestamp
-          && (!('expirationTime' in request.resource.data.subscription)
-              || request.resource.data.subscription.expirationTime == null
-              || request.resource.data.subscription.expirationTime is number);
+          && validPushSubscription(subscriptionId, request.resource.data);
       allow delete: if isVerifiedOwner(userId);
     }
 
-    // Nutzer dürfen ihre eigenen Zustellmarker für eine vollständige Kontolöschung lesen und löschen.
-    // Anlegen und Ändern bleibt ausschließlich dem Push-Worker vorbehalten.
+    // Users may read/delete their own delivery markers during account deletion.
+    // Only the trusted Push Worker may create or update them.
     match /users/{userId}/pushDeliveries/{deliveryId} {
       allow read, delete: if isVerifiedOwner(userId);
       allow create, update: if false;
     }
 
-    // Den Rest der Datenbank standardmäßig sperren.
+    // Deny every path that is not explicitly granted above.
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+
