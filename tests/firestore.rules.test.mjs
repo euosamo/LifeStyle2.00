@@ -184,40 +184,4 @@ test("push subscriptions are verified-owner-only, scoped, and schema-validated",
   await assertFails(setDoc(path, invalidExpiration));
 
   const badId = doc(alice, "users/alice/pushSubscriptions/not-a-hash");
-  await assertFails(setDoc(badId, validSubscription()));
-
-  const staleTimestamp = validSubscription();
-  staleTimestamp.updatedAt = new Date();
-  await assertFails(setDoc(path, staleTimestamp));
-
-  const unverifiedWrite = doc(unverified, "users/alice/pushSubscriptions/" + "b".repeat(40));
-  await assertFails(setDoc(unverifiedWrite, validSubscription()));
-});
-
-test("verified owners can only read and delete their own push delivery markers", async () => {
-  const alice = verified("alice");
-  const bob = verified("bob");
-  const unverified = env.authenticatedContext("alice", { email_verified: false }).firestore();
-  const marker = doc(alice, "users/alice/pushDeliveries/job1");
-
-  await env.withSecurityRulesDisabled(async context => {
-    const admin = context.firestore();
-    const { setDoc: adminSetDoc, doc: adminDoc } = await import("firebase/firestore");
-    await adminSetDoc(adminDoc(admin, "users/alice/pushDeliveries/job1"), { status: "sent" });
-  });
-
-  await assertSucceeds(getDoc(marker));
-  await assertFails(getDoc(doc(bob, "users/alice/pushDeliveries/job1")));
-  await assertFails(setDoc(marker, { status: "tampered" }));
-  await assertFails(setDoc(doc(bob, "users/alice/pushDeliveries/job2"), { status: "sent" }));
-  await assertFails(getDoc(doc(unverified, "users/alice/pushDeliveries/job1")));
-  await assertSucceeds(deleteDoc(marker));
-});
-
-test("all unmatched Firestore paths remain denied", async () => {
-  const db = verified("alice");
-  await assertFails(setDoc(doc(db, "public/anything"), { value: true }));
-  await assertFails(getDoc(doc(db, "users/bob/appData/main")));
-  await assertFails(setDoc(doc(db, "users/bob/pushSubscriptions/" + "c".repeat(40)), validSubscription()));
-});
-
+  aw

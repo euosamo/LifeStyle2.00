@@ -23,12 +23,17 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24.12.0
+          node-version: 22
+      - name: Set up Java 21 for Firestore Emulator
+        uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          verify-signature: true
       - name: Install test dependencies
-        run: npm install --no-save --no-audit --no-fund firebase@latest @firebase/rules-unit-testing@latest firebase-tools@latest
+        run: |
+          npm install --no-save --no-audit --no-fund firebase@10.12.2 @firebase/rules-unit-testing@3.0.4 firebase-tools@15.35.0
+          npm ci --prefix firebase-functions
       - name: Syntax-check runtime modules
         run: |
-          node --check --input-type=module < firebase-login.js
-          node --check --input-type=module < push-worker/src/index.js
-      - name: Test Firestore rules in emulator
-        run: npx firebase emulators:exec --only firestore --project demo-lifestyle-rules "node --test tests/*.test.mjs"
+          node --check --input-

@@ -1,13 +1,6 @@
 {
-  "name": "Lifestyle Finanzen",
-  "short_name": "Lifestyle",
-  "description": "Persönliche Finanzübersicht und Fälligkeitserinnerungen",
-  "start_url": "./index.html",
-  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#030d1b",
-  "theme_color": "#061323",
   "icons": [
     {
       "src": "./apple-touch-icon.png.png",
@@ -27,5 +20,7 @@
       "type": "image/png",
       "purpose": "any"
     }
-  ]
-}
+  ],
+  "start_url": "./index.html",
+  "scope": "./",
+  "short_name": "Lifestyle

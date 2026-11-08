@@ -1,6 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { initializeAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, browserLocalPersistence, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, limit, writeBatch, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
+import { initializeAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, browserLocalPersistence, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, doc, getDoc, setDoc, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBsklHgKgsiwEmY_PhmLxhYTdiGlbXpCqc",
@@ -15,6 +17,8 @@ const appRoot = document.getElementById("app");
 const message = document.getElementById("authMessage");
 let mode = "login", user = null, db = null, auth = null, cloudReady = false, timer = null;
 let activeUid = null;
+let appCheck = null;
+let functions = null;
 let cloudRevision = 0;
 let cloudUnsubscribe = null;
 let lastCloudState = null;
@@ -33,6 +37,15 @@ function msg(text, error = false) {
       window.showToast(text);
     }
   }
+}
+function createButton(parent, id, label, className = "secondary") {
+  const button = document.createElement("button");
+  button.id = id;
+  button.type = "button";
+  button.className = className;
+  button.textContent = label;
+  parent.appendChild(button);
+  return button;
 }
 function formMode() {
   const reg = mode === "register";
@@ -58,18 +71,53 @@ function authError(e) {
     "auth/invalid-credential": "E-Mail oder Passwort stimmt nicht.",
     "auth/user-not-found": "Für diese E-Mail gibt es noch kein Konto. Bitte registrieren.",
     "auth/wrong-password": "Das Passwort stimmt nicht.",
-    "auth/network-request-failed": "Verbindung prüfen und erneut versuchen.",
     "auth/operation-not-allowed": "E-Mail/Passwort-Anmeldung ist in Firebase nicht aktiviert.",
     "auth/unauthorized-domain": "Diese Website ist in Firebase nicht als erlaubte Domain eingetragen.",
     "auth/configuration-not-found": "Die Firebase-Authentifizierung ist nicht vollständig eingerichtet.",
+    "auth/invalid-api-key": "Der Firebase-Web-API-Schlüssel ist ungültig oder gehört nicht zu diesem Projekt.",
+    "auth/app-not-authorized": "Diese App ist für das Firebase-Projekt nicht autorisiert.",
+    "auth/network-request-failed": "Firebase ist nicht erreichbar. Prüfe Netzwerk, Browserblocker und Content-Security-Policy.",
     "auth/too-many-requests": "Zu viele Versuche. Bitte später erneut probieren."
   };
   return errors[e.code] || `Anmeldung fehlgeschlagen (${e.code || e.message || "unbekannter Fehler"}).`;
 }
-function setupMissing() {
+function setupMissing(error) {
   if (gate) gate.hidden = false;
   if (appRoot) appRoot.hidden = true;
+  if (error) console.error("[Lifestyle] Firebase initialization failed:", error);
   msg("Firebase konnte nicht gestartet werden. Bitte Internetverbindung und Firebase-Konfiguration prüfen.", true);
+}
+
+function showCloudLoadFailure(error) {
+  const form = document.getElementById("authForm");
+  const forgot = document.getElementById("authForgot");
+  const switchMode = document.getElementById("authSwitch");
+  if (form) form.hidden = true;
+  if (forgot) forgot.hidden = true;
+  if (switchMode) switchMode.hidden = true;
+  if (gate) gate.hidden = false;
+  if (appRoot) appRoot.hidden = true;
+  document.body.classList.remove("authenticated");
+  let actions = document.getElementById("authRecoveryActions");
+  if (!actions) {
+    actions = document.createElement("div");
+    actions.id = "authRecoveryActions";
+    createButton(actions, "authRetryData", "Erneut versuchen");
+    createButton(actions, "authSignOutAfterLoadError", "Abmelden");
+    message?.insertAdjacentElement("afterend", actions);
+    document.getElementById("authRetryData").addEventListener("click", () => window.location.reload());
+    document.getElementById("authSignOutAfterLoadError").addEventListener("click", async () => {
+      try { await signOut(auth); } catch (signOutError) { console.error("[Lifestyle] Sign-out after data-load failure failed:", signOutError); }
+    });
+  }
+  actions.hidden = false;
+  const explanation = error?.code === "permission-denied"
+    ? "Prüfe aktive Firestore-Regeln, den Verifizierungsstatus und eine eventuell erzwungene App-Check-Konfiguration."
+    : error?.code === "unavailable" || error?.code === "deadline-exceeded"
+      ? "Prüfe die Internetverbindung und ob Firestore erreichbar ist."
+      : "Prüfe Firebase-Projekt, Browserkonsole und Firestore-Konfiguration.";
+  console.error("[Lifestyle] Firebase sign-in succeeded, but private data could not be loaded:", error);
+  msg(`Anmeldung erfolgreich, aber deine privaten Finanzdaten konnten nicht geladen werden (${error?.code || "Fehler"}). ${explanation}`, true);
 }
 
 document.getElementById("authSwitch").addEventListener("click", () => {
@@ -114,15 +162,22 @@ document.getElementById("authForgot").addEventListener("click", async () => {
 document.getElementById("authLogout").addEventListener("click", async () => {
   if (!auth) return;
   const button = document.getElementById("authLogout");
+  const signedOutUid = auth.currentUser?.uid;
+  let cloudSaveConfirmed = false;
   button.disabled = true;
   try {
     try {
-      if (typeof window.lifestyleFlushCloudSave === "function") await window.lifestyleFlushCloudSave();
+      if (typeof window.lifestyleFlushCloudSave !== "function") throw new Error("Cloud-Speicherung nicht verfügbar.");
+      await window.lifestyleFlushCloudSave();
+      cloudSaveConfirmed = true;
     } catch (saveError) {
       // The pending snapshot is retained locally; a sync conflict must never trap the user in the session.
       msg("Abmeldung erfolgt. Eine Änderung konnte noch nicht synchronisiert werden und bleibt auf diesem Gerät zur Wiederherstellung gespeichert.", true);
     }
     await signOut(auth);
+    // Remove the per-user plaintext cache only after a confirmed cloud flush. If the
+    // device was offline or the write failed, keep it so the user can recover it.
+    if (cloudSaveConfirmed && signedOutUid) clearUserLocalData(signedOutUid);
   } catch (e) {
     msg("Abmeldung fehlgeschlagen (" + (e.code || e.message || "Fehler") + "). Bitte erneut versuchen.", true);
   } finally {
@@ -133,15 +188,27 @@ document.getElementById("authLogout").addEventListener("click", async () => {
 
 const ref = uid => doc(db, "users", uid, "appData", "main");
 
-async function deleteOwnCollection(uid, collectionName) {
-  const ownCollection = collection(db, "users", uid, collectionName);
-  while (true) {
-    const page = await getDocs(query(ownCollection, limit(400)));
-    if (page.empty) break;
-    const batch = writeBatch(db);
-    page.docs.forEach(item => batch.delete(item.ref));
-    await batch.commit();
-    if (page.size < 400) break;
+function clearUserLocalData(uid, includeLegacy = false) {
+  try {
+    const prefix = "lifestyle-finanz-app-user-" + uid;
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) localStorage.removeItem(key);
+    }
+    if (localStorage.getItem("lifestyle-finanz-new-user-uid") === uid) {
+      localStorage.removeItem("lifestyle-finanz-new-user-uid");
+    }
+    if (includeLegacy) {
+      localStorage.removeItem("lifestyle-finanz-app-v3-empty");
+      localStorage.removeItem("lifestyle-finanz-app-v2");
+      localStorage.removeItem("lifestyle-finanz-legacy-imported");
+      localStorage.removeItem("lifestyle-finanz-guide-seen");
+      localStorage.removeItem("lifestyle-finanz-onboarding-done");
+    }
+    return true;
+  } catch (storageError) {
+    console.warn("[Lifestyle] Local user data cleanup was incomplete:", storageError);
+    return false;
   }
 }
 
@@ -230,27 +297,15 @@ window.lifestyleDeleteAccount = async function () {
     } catch (pushCleanupError) {
       console.warn("[Lifestyle] Browser push subscription cleanup skipped:", pushCleanupError);
     }
-    await deleteOwnCollection(current.uid, "pushSubscriptions");
-    await deleteOwnCollection(current.uid, "pushDeliveries");
-    await deleteDoc(ref(current.uid));
-    try {
-      const prefix = "lifestyle-finanz-app-user-" + current.uid;
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(prefix)) localStorage.removeItem(key);
-      }
-      if (localStorage.getItem("lifestyle-finanz-new-user-uid") === current.uid) {
-        localStorage.removeItem("lifestyle-finanz-new-user-uid");
-      }
-      // Remove the one-time legacy import source as part of an explicit account deletion.
-      localStorage.removeItem("lifestyle-finanz-app-v3-empty");
-      localStorage.removeItem("lifestyle-finanz-app-v2");
-      localStorage.removeItem("lifestyle-finanz-legacy-imported");
-      localStorage.removeItem("lifestyle-finanz-guide-seen");
-      localStorage.removeItem("lifestyle-finanz-onboarding-done");
-    } catch (_) {}
-    await deleteUser(current);
-    msg("Dein Konto wurde gelöscht.");
+    if (!functions) throw new Error("Kontolöschung ist nicht verfügbar: Backend-Funktion nicht initialisiert.");
+    await httpsCallable(functions, "deleteOwnAccount")({});
+    const localCleanupComplete = clearUserLocalData(current.uid, true);
+    if (typeof window.lifestyleApplyState === "function") window.lifestyleApplyState({}, { render: false });
+    // Admin SDK deletion does not automatically clear this browser's Firebase Auth session.
+    await signOut(auth);
+    msg(localCleanupComplete
+      ? "Dein Konto wurde gelöscht."
+      : "Dein Konto wurde gelöscht, aber lokale Gerätedaten konnten nicht vollständig entfernt werden. Bitte lösche die Website-Daten für Lifestyle in deinem Browser.", !localCleanupComplete);
   } catch (e) {
     if (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential") {
       msg("Das Passwort stimmt nicht. Dein Konto wurde nicht gelöscht.", true);
@@ -501,187 +556,13 @@ function showVerificationGate(currentUser) {
   if (!verify) {
     verify = document.createElement("div");
     verify.id = "verifyEmailActions";
-    verify.innerHTML = '<button id="resendVerification" class="secondary" type="button">Bestätigungs-E-Mail erneut senden</button><button id="checkVerification" class="secondary" type="button">Ich habe bestätigt – erneut prüfen</button><button id="changeVerificationEmail" class="secondary" type="button">Zurück – E-Mail-Adresse ändern</button>';
+    createButton(verify, "resendVerification", "Bestätigungs-E-Mail erneut senden");
+    createButton(verify, "checkVerification", "Ich habe bestätigt – erneut prüfen");
+    createButton(verify, "changeVerificationEmail", "Zurück – E-Mail-Adresse ändern");
     message.insertAdjacentElement("afterend", verify);
     document.getElementById("resendVerification").addEventListener("click", async () => {
       try {
         if (!auth.currentUser) throw new Error("Bitte melde dich erneut an.");
         await sendEmailVerification(auth.currentUser);
         msg("Eine neue Bestätigungs-E-Mail wurde angefordert. Bitte prüfe auch den Spam-Ordner.");
-      } catch (e) { msg(authError(e), true); }
-    });
-    document.getElementById("checkVerification").addEventListener("click", async () => {
-      try {
-        if (!auth.currentUser) throw new Error("Bitte melde dich erneut an.");
-        await reload(auth.currentUser);
-        if (auth.currentUser.emailVerified) {
-          await auth.currentUser.getIdToken(true);
-          window.location.reload();
-        } else {
-          msg("Die E-Mail ist noch nicht bestätigt. Bitte öffne den Link in der E-Mail und versuche es erneut.");
-        }
-      } catch (e) { msg(authError(e), true); }
-    });
-    document.getElementById("changeVerificationEmail").addEventListener("click", async () => {
-      const previousEmail = auth.currentUser?.email || document.getElementById("authEmail").value;
-      try {
-        await signOut(auth);
-        document.getElementById("authEmail").value = previousEmail;
-        mode = "register";
-        formMode();
-        document.getElementById("authForm").hidden = false;
-        document.getElementById("authForgot").hidden = true;
-        document.getElementById("authSwitch").hidden = false;
-        document.getElementById("authSwitch").textContent = "Ich habe bereits ein Konto";
-        msg("Prüfe oder ändere die E-Mail-Adresse und registriere dich erneut. Eine falsch geschriebene Adresse kann nicht nachträglich geändert werden.");
-        document.getElementById("authEmail").focus();
-      } catch (e) { msg(authError(e), true); }
-    });
-  }
-  verify.hidden = false;
-  document.getElementById("authForm").hidden = true;
-  document.getElementById("authForgot").hidden = true;
-  document.getElementById("authSwitch").hidden = true;
-  msg("Bitte bestätige zuerst deine E-Mail-Adresse (" + (currentUser.email || "") + "). Erst danach kannst du deine Finanzübersicht öffnen.");
-}
-formMode();
-
-try {
-  const app = initializeApp(firebaseConfig);
-  // Initialize auth directly with browser storage. Avoid awaiting IndexedDB persistence,
-  // which can stall Firebase startup on some iOS PWA installations.
-  auth = initializeAuth(app, { persistence: browserLocalPersistence });
-  db = initializeFirestore(app, { ignoreUndefinedProperties: true });
-  onAuthStateChanged(auth, async nextUser => {
-    clearTimeout(timer);
-    if (cloudUnsubscribe) { cloudUnsubscribe(); cloudUnsubscribe = null; }
-    cloudReady = false;
-    window.lifestyleCloudReady = false;
-    lastCloudState = null;
-    user = nextUser;
-    if (!user) {
-      const verify = document.getElementById("verifyEmailActions");
-      if (verify) verify.hidden = true;
-      document.getElementById("authForm").hidden = false;
-      document.getElementById("authForgot").hidden = false;
-      document.getElementById("authSwitch").hidden = false;
-      activeUid = null;
-      cloudRevision = 0;
-      pendingSaveKey = null;
-      window.lifestyleUserStorageKey = null;
-      gate.hidden = false;
-      appRoot.hidden = true;
-      document.body.classList.remove("authenticated");
-      document.getElementById("authLogout").hidden = true;
-      return;
-    }
-
-    if (!user.emailVerified) {
-      activeUid = null;
-      cloudRevision = 0;
-      pendingSaveKey = null;
-      window.lifestyleUserStorageKey = null;
-      showVerificationGate(user);
-      return;
-    }
-    const verify = document.getElementById("verifyEmailActions");
-    if (verify) verify.hidden = true;
-    document.getElementById("authForm").hidden = false;
-    document.getElementById("authForgot").hidden = false;
-    document.getElementById("authSwitch").hidden = false;
-    const uid = user.uid;
-    activeUid = uid;
-    window.lifestyleUserStorageKey = "lifestyle-finanz-app-user-" + uid;
-    pendingSaveKey = window.lifestyleUserStorageKey + "-pending-cloud-save";
-    gate.hidden = false;
-    appRoot.hidden = true;
-    document.getElementById("authLogout").hidden = false;
-    msg("Deine Finanzdaten werden geladen …");
-    try {
-      // Cloud is authoritative. Never continue with defaults or local data merely
-      // because a device/network is slow: wait for Firestore or fail closed.
-      const snap = await getDoc(ref(uid));
-      if (!user || user.uid !== uid) return;
-      const localRaw = localStorage.getItem(window.lifestyleUserStorageKey);
-      const localState = localRaw ? JSON.parse(localRaw) : null;
-      cloudRevision = snap.exists() ? Number(snap.data().revision || 0) : 0;
-      const pendingRaw = localStorage.getItem(pendingSaveKey);
-      const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
-      if (pending && (!pending.state || typeof pending.state !== "object" || Array.isArray(pending.state))) throw new Error("Ausstehender lokaler Speicherstand ist ungültig. Er wurde nicht überschrieben.");
-      const cloudState = snap.exists() ? decodeFirestoreValue(snap.data().state) : null;
-      // A revision mismatch must not lock the user out. Preserve the pending
-      // snapshot under a separate recovery key, then use the cloud as authority
-      // when it exists. If no cloud document exists, retain the pending snapshot.
-      if (pending && Number(pending.baseRevision) !== cloudRevision) {
-        try {
-          const backupKey = pendingSaveKey + "-conflict-backup-" + Date.now();
-          localStorage.setItem(backupKey, pendingRaw);
-          localStorage.removeItem(pendingSaveKey);
-        } catch (backupError) {
-          throw new Error("Der lokale Zwischenstand konnte nicht sicher gesichert werden. Bitte Gerätespeicher prüfen; es wurde nichts überschrieben.");
-        }
-      }
-      if (snap.exists() && (!cloudState || typeof cloudState !== "object" || Array.isArray(cloudState))) {
-        throw new Error("Der gespeicherte Cloud-Datenstand ist ungültig. Zum Schutz deiner Daten wurde das Laden gestoppt.");
-      }
-      // Import legacy data from the previous main version once, only when this account has no saved data.
-      let legacyState = null;
-      let legacyImport = false;
-      try {
-        const alreadyImported = localStorage.getItem("lifestyle-finanz-legacy-imported");
-        if (!alreadyImported && !localState && !cloudState) {
-          const legacyRaw = localStorage.getItem("lifestyle-finanz-app-v3-empty");
-          if (legacyRaw) { legacyState = JSON.parse(legacyRaw); legacyImport = !!legacyState && typeof legacyState === "object"; }
-        }
-      } catch (_) {}
-      // An existing Firestore document always wins. Local data is only used to
-      // initialize a genuinely missing cloud document (or one-time legacy import).
-      const pendingMatchesCloud = !!(pending && Number(pending.baseRevision) === cloudRevision);
-      const chosenState = (pendingMatchesCloud ? pending.state : null) || cloudState || (pending && pending.state) || localState || legacyState || null;
-      if (legacyImport && chosenState === legacyState) {
-        try {
-          localStorage.setItem(window.lifestyleUserStorageKey, JSON.stringify(legacyState));
-          localStorage.setItem(window.lifestyleUserStorageKey + "-saved-at", String(Date.now()));
-        } catch (_) {}
-      }
-      if (typeof window.lifestyleApplyState !== "function" || typeof window.render !== "function") {
-        throw new Error("App-Funktionen wurden nicht geladen.");
-      }
-      window.lifestyleApplyState(chosenState);
-      if (!user || user.uid !== uid) return;
-      // Reveal the app only after the verified cloud/local initialization is complete.
-      cloudReady = true;
-      window.lifestyleCloudReady = true;
-      // If this account has no Firestore document yet, explicitly seed it from the
-      // already-selected initial state. Existing cloud documents are never replaced here.
-      if (!snap.exists()) {
-        await writeCloudSnapshot(user, chosenState || {});
-      }
-      lastCloudState = cloneState(cloudState || chosenState || {});
-      showApp();
-      window.render();
-      startCloudRealtimeSync(uid);
-      // render() below queues the initial snapshot through the same revision-checked save path.
-      let newlyRegistered = false;
-      try { newlyRegistered = localStorage.getItem("lifestyle-finanz-new-user-uid") === uid; } catch (_) {}
-      if (newlyRegistered && !chosenState?.onboardingComplete && typeof window.showFirstStart === "function") {
-        window.showFirstStart();
-      }
-      if (typeof window.checkReminders === "function") {
-        window.checkReminders();
-        if (!window.lifestyleReminderTimer) window.lifestyleReminderTimer = setInterval(window.checkReminders, 15000);
-      }
-      msg("");
-    } catch (e) {
-      cloudReady = false;
-      window.lifestyleCloudReady = false;
-      msg(`Anmeldung war erfolgreich, aber Finanzdaten konnten nicht geladen werden (${e.code || e.message || "Fehler"}). Firestore-Regeln und Datenbank prüfen.`, true);
-    }
-  }, e => {
-    setupMissing();
-    msg(authError(e), true);
-  });
-} catch (e) {
-  setupMissing();
-  msg(authError(e), true);
-}
+      } catch (e) { msg(authError(e), true);

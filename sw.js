@@ -1,5 +1,5 @@
-const CACHE_NAME = 'lifestyle-finanz-app-v20';
-const APP_FILES = ['./', './index.html', './firebase-login.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-ls.svg', './apple-touch-icon.png.png'];
+const CACHE_NAME = 'lifestyle-finanz-app-v23';
+const APP_FILES = ['./', './index.html', './app.js', './sw-register.js', './firebase-login.js', './backup-utils.js', './styles.css', './manifest.webmanifest', './apple-touch-icon.png.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_FILES)));
@@ -59,25 +59,4 @@ self.addEventListener('push', event => {
   }));
 });
 
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  let targetUrl;
-  try {
-    targetUrl = new URL(event.notification.data?.url || './', self.location.origin);
-    if (targetUrl.origin !== self.location.origin) targetUrl = new URL('./', self.location.origin);
-  } catch (_) {
-    targetUrl = new URL('./', self.location.origin);
-  }
-  const target = targetUrl.href;
-  event.waitUntil((async () => {
-    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const client of windows) {
-      if (new URL(client.url).origin === self.location.origin) {
-        await client.focus();
-        if ('navigate' in client && client.url !== target) await client.navigate(target);
-        return;
-      }
-    }
-    if (self.clients.openWindow) await self.clients.openWindow(target);
-  })());
-});
+self.addEventListener('n
