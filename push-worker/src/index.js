@@ -1,8 +1,8 @@
 import webpush from "web-push";
+import { b64url } from "./encoding.js";
 
 const PROJECT_ID = "lifestyle2-login";
 const FIRESTORE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
-const b64url = s => btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const enc = s => new TextEncoder().encode(s);
 const decodeB64 = s => Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
 const fromPem = pem => Uint8Array.from(atob(pem.replace(/-----[^-]+-----/g,"").replace(/\s/g,"")),c=>c.charCodeAt(0));
@@ -33,8 +33,10 @@ function val(v) {
   return v;
 }
 function fields(doc) { return Object.fromEntries(Object.entries(doc.fields||{}).map(([k,v])=>[k,val(v)])); }
-async function collectionGroup(token,name) {
-  const res=await fetch(FIRESTORE+":runQuery",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({structuredQuery:{from:[{collectionId:name,allDescendants:true}],limit:1000}})});
+async function collectionGroup(token,name,fieldPaths) {
+  const structuredQuery={from:[{collectionId:name,allDescendants:true}],limit:1000};
+  if(Array.isArray(fieldPaths)&&fieldPaths.length) structuredQuery.select={fields:fieldPaths.map(fieldPath=>({fieldPath}))};
+  const res=await fetch(FIRESTORE+":runQuery",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({structuredQuery})});
   if(!res.ok) throw new Error("Firestore query "+name+": "+res.status+" "+await res.text());
   return (await res.json()).filter(x=>x.document).map(x=>({name:x.document.name,data:fields(x.document)}));
 }
@@ -56,20 +58,58 @@ function localParts(date,tz) {
   return Object.fromEntries(p.map(x=>[x.type,x.value]));
 }
 function dueList(state,now,tz) {
-  const p=localParts(now,tz), day=p.year+"-"+p.month+"-"+p.day, hm=p.hour+":"+p.minute, out=[];
-  const add=(id,title,body,date,time)=>{if(date===day&&time===hm)out.push({id,title:title||"Lifestyle-Erinnerung",body:body||"Deine Erinnerung ist fällig."});};
+  const safeState=state&&typeof state==="object"&&!Array.isArray(state)?state:{};
+  let p;
+  try { p=localParts(now,tz||"Europe/Berlin"); }
+  catch (_) { p=localParts(now,"Europe/Berlin"); }
+  const day=p.year+"-"+p.month+"-"+p.day, hm=p.hour+":"+p.minute, out=[];
+  const add=(id,title,body,date,time)=>{
+    if(date!==day||time!==hm)return;
+    out.push({
+      id:String(id??"reminder").slice(0,120),
+      title:String(title||"Lifestyle-Erinnerung").slice(0,80),
+      body:String(body||"Deine Erinnerung ist fällig.").slice(0,220)
+    });
+  };
+  const reminders=safeState.reminders&&typeof safeState.reminders==="object"&&!Array.isArray(safeState.reminders)?safeState.reminders:{};
   for(const [k,label] of [["inst","Raten & Verpflichtungen"],["one","Einmalige Ausgaben"],["goals","Sparziele"]]) {
-    const r=state.reminders?.[k]; if(r?.enabled&&Number(r.day)===Number(p.day)&&r.time===hm) add("area-"+k,label,"Deine monatliche Erinnerung ist fällig.",day,hm);
+    const r=reminders[k];
+    if(r&&typeof r==="object"&&r.enabled===true&&Number(r.day)===Number(p.day)&&r.time===hm) {
+      add("area-"+k,label,"Deine monatliche Erinnerung ist fällig.",day,hm);
+    }
   }
-  for(const n of state.notes||[]) { const r=n.reminder; if(r?.enabled) add("note-"+(n.id||n.title),n.title,n.body,r.date,r.time); }
-  for(const x of state.one||[]) { const r=x[5]; if(r?.enabled) add("one-"+(x[6]||x[0]),x[0],"Deine Erinnerung für diese einmalige Ausgabe ist fällig.",r.date,r.time); }
-  for(const x of state.inst||[]) { const r=x[6]; if(r?.enabled) { const date=r.date||x[5]; add("inst-"+(x[0]||"rate"),x[0],"Deine Zahlungserinnerung ist fällig.",date,r.time); } }
+  const notes=Array.isArray(safeState.notes)?safeState.notes:[];
+  for(const n of notes) {
+    if(!n||typeof n!=="object")continue;
+    const r=n.reminder;
+    if(r&&typeof r==="object"&&r.enabled===true) add("note-"+(n.id||n.title||"note"),n.title,n.body,r.date,r.time);
+  }
+  const one=Array.isArray(safeState.one)?safeState.one:[];
+  for(const x of one) {
+    if(!Array.isArray(x))continue;
+    const r=x[5];
+    if(r&&typeof r==="object"&&r.enabled===true) add("one-"+(x[6]||x[0]||"expense"),x[0],"Deine Erinnerung für diese einmalige Ausgabe ist fällig.",r.date,r.time);
+  }
+  const installments=Array.isArray(safeState.inst)?safeState.inst:[];
+  for(const x of installments) {
+    if(!Array.isArray(x))continue;
+    const r=x[6];
+    if(r&&typeof r==="object"&&r.enabled===true) {
+      const date=r.date||x[5];
+      add("inst-"+(x[0]||"rate"),x[0],"Deine Zahlungserinnerung ist fällig.",date,r.time);
+    }
+  }
   return out;
 }
 async function run(env) {
   if(!env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.VAPID_PRIVATE_KEY) throw new Error("Fehlende Worker-Secrets.");
   const token=await accessToken(env);
-  const [apps,subs]=await Promise.all([collectionGroup(token,"appData"),collectionGroup(token,"pushSubscriptions")]);
+  // Only fetch the fields required to build reminders. Do not return transaction,
+  // balance, account, goal, or category data to the push worker.
+  const [apps,subs]=await Promise.all([
+    collectionGroup(token,"appData",["state.reminders","state.notes","state.one","state.inst"]),
+    collectionGroup(token,"pushSubscriptions",["subscription","timezone"])
+  ]);
   const subByUid=new Map();
   for(const s of subs) {
     const m=/\/documents\/users\/([^/]+)\/pushSubscriptions\//.exec(s.name);
@@ -93,6 +133,17 @@ async function run(env) {
       const payload=JSON.stringify({title:job.title,body:job.body,tag:job.id,url:"/"});
       let success=false;
       for(const s of userSubs) {
+        let endpoint;
+        try { endpoint=new URL(s.subscription.endpoint); } catch (_) { continue; }
+        const host=endpoint.hostname.toLowerCase();
+        const trustedPushHost=host==="fcm.googleapis.com"
+          || host==="updates.push.services.mozilla.com"
+          || host==="web.push.apple.com"
+          || host.endsWith(".notify.windows.com");
+        if(endpoint.protocol!=="https:" || (endpoint.port && endpoint.port !== "443") || endpoint.username || endpoint.password || !trustedPushHost) {
+          console.warn("Skipping untrusted push endpoint host:",host);
+          continue;
+        }
         try { await webpush.sendNotification(s.subscription,payload); success=true; sent++; }
         catch(e) { if(e.statusCode===404||e.statusCode===410) { expired++; } else console.error("Push send failed",e.statusCode,e.message); }
       }
@@ -104,8 +155,14 @@ async function run(env) {
 export default {
   async scheduled(controller,env,ctx) { ctx.waitUntil(run(env).catch(e=>console.error("Scheduled push failed:",e))); },
   async fetch(request,env) {
-    const path = new URL(request.url).pathname;
-    if(path === "/" || path === "/health") return Response.json({ok:true,service:"Lifestyle Push Worker",health:"online"});
-    return Response.json({ok:false,error:"Not found",path},{status:404});
+    const url = new URL(request.url);
+    const headers = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
+    if (request.method !== "GET") {
+      return Response.json({ok:false,error:"Method not allowed"},{status:405,headers:{...headers,"Allow":"GET"}});
+    }
+    if (url.pathname === "/" || url.pathname === "/health") {
+      return Response.json({ok:true,service:"Lifestyle Push Worker",health:"online"},{headers});
+    }
+    return Response.json({ok:false,error:"Not found"},{status:404,headers});
   }
 };
