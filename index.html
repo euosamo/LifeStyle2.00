@@ -35,4 +35,18 @@
 
 <div class="app" id="app" hidden>
   <div id="topline" class="topline"></div>
-  <main id="content" class="
+  <main id="content" class="content"></main>
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="home"><span class="nav-icon">⌂</span><span>Startseite</span></button>
+    <button class="nav-btn" data-page="bookings"><span class="nav-icon">▤</span><span>Buchungen</span></button>
+    <button class="nav-btn" data-page="analytics"><span class="nav-icon">▥</span><span>Auswertung</span></button>
+    <button class="nav-btn" data-page="more"><span class="nav-icon">⋮</span><span>Mehr</span></button>
+  </nav>
+</div>
+<script src="./backup-utils.js"></script>
+<script src="./app.js"></script>
+
+<script type="module" src="./firebase-login.js"></script>
+
+<script src="./sw-register.js"></script>
+</body></html>

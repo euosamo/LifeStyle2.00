@@ -57,4 +57,24 @@ test("server account deletion requires verified auth and recursively removes onl
     const idToken = await signIn(victimEmail, password);
     const response = await callDelete(idToken, { uid: other.uid });
     const responseText = await response.text();
-    assert.equal(response.status, 200, `verified caller deletion failed: ${responseTex
+    assert.equal(response.status, 200, `verified caller deletion failed: ${responseText}`);
+    const body = JSON.parse(responseText);
+    assert.deepEqual(body.result || body.data, { deleted: true });
+
+    await assert.rejects(auth.getUser(victim.uid), error => error.code === "auth/user-not-found");
+    assert.equal((await db.doc(`users/${victim.uid}/appData/main`).get()).exists, false);
+    assert.equal((await db.doc(`users/${victim.uid}/pushSubscriptions/endpoint`).get()).exists, false);
+    assert.equal((await db.doc(`users/${other.uid}/appData/main`).get()).exists, true, "request data must not select another UID");
+    const retry = await callDelete(idToken, { uid: other.uid });
+    assert.equal(retry.status, 200, `retry after completed deletion should be idempotent: ${await retry.text()}`);
+    await auth.deleteUser(other.uid);
+    other = null;
+    await auth.deleteUser(unverified.uid);
+    unverified = null;
+  } finally {
+    if (victim) await auth.deleteUser(victim.uid).catch(() => {});
+    if (other) await auth.deleteUser(other.uid).catch(() => {});
+    if (unverified) await auth.deleteUser(unverified.uid).catch(() => {});
+    await deleteApp(app);
+  }
+});

@@ -23,4 +23,9 @@
   ],
   "start_url": "./index.html",
   "scope": "./",
-  "short_name": "Lifestyle
+  "short_name": "Lifestyle",
+  "theme_color": "#061323",
+  "background_color": "#030d1b",
+  "description": "Persönliche Finanzübersicht und Fälligkeitserinnerungen",
+  "name": "Lifestyle Finanzen"
+}

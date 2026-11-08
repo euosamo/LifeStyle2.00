@@ -61,4 +61,19 @@ test("Auth emulator covers two isolated accounts, email verification, sign-in, r
   assert.equal(signedInA.user.uid, first.user.uid);
   await sendPasswordResetEmail(auth, emailA);
   const resetCode = await waitForOobCode(emailA, "PASSWORD_RESET");
-  assert.equal(await verifyPasswordResetCo
+  assert.equal(await verifyPasswordResetCode(auth, resetCode), emailA);
+  await confirmPasswordReset(auth, resetCode, "Lifestyle-Test-A-456!");
+  await signOut(auth);
+  const resetSignIn = await signInWithEmailAndPassword(auth, emailA, "Lifestyle-Test-A-456!");
+  assert.equal(resetSignIn.user.uid, first.user.uid);
+  await signOut(auth);
+
+  const second = await createUserWithEmailAndPassword(auth, emailB, passwordB);
+  assert.notEqual(second.user.uid, first.user.uid);
+  await signOut(auth);
+  await assert.rejects(signInWithEmailAndPassword(auth, emailB, passwordA), error => ["auth/invalid-credential", "auth/wrong-password"].includes(error.code));
+  const finalSignIn = await signInWithEmailAndPassword(auth, emailA, "Lifestyle-Test-A-456!");
+  assert.equal(finalSignIn.user.uid, first.user.uid);
+  await signOut(auth);
+  assert.equal(auth.currentUser, null);
+});

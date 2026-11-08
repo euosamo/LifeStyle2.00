@@ -120,4 +120,49 @@ async function run(env) {
   let sent=0, expired=0;
   for(const a of apps) {
     if(!a.name.endsWith("/appData/main")) continue;
-    const m=/\
+    const m=/\/documents\/users\/([^/]+)\/appData\/main$/.exec(a.name);
+    if(!m) continue;
+    const uid=m[1], state=a.data.state;
+    if(!state || !subByUid.has(uid)) continue;
+    const userSubs=subByUid.get(uid);
+    for(const job of dueList(state,new Date(),userSubs[0].timezone||"Europe/Berlin")) {
+      const id=b64url(job.id+"|"+job.title+"|"+job.body+"|"+new Date().toISOString().slice(0,16));
+      const path="users/"+uid+"/pushDeliveries/"+id;
+      const reserved=await marker(token,path);
+      if(!reserved) continue;
+      const payload=JSON.stringify({title:job.title,body:job.body,tag:job.id,url:"/"});
+      let success=false;
+      for(const s of userSubs) {
+        let endpoint;
+        try { endpoint=new URL(s.subscription.endpoint); } catch (_) { continue; }
+        const host=endpoint.hostname.toLowerCase();
+        const trustedPushHost=host==="fcm.googleapis.com"
+          || host==="updates.push.services.mozilla.com"
+          || host==="web.push.apple.com"
+          || host.endsWith(".notify.windows.com");
+        if(endpoint.protocol!=="https:" || (endpoint.port && endpoint.port !== "443") || endpoint.username || endpoint.password || !trustedPushHost) {
+          console.warn("Skipping untrusted push endpoint host:",host);
+          continue;
+        }
+        try { await webpush.sendNotification(s.subscription,payload); success=true; sent++; }
+        catch(e) { if(e.statusCode===404||e.statusCode===410) { expired++; } else console.error("Push send failed",e.statusCode,e.message); }
+      }
+      if(!success) await removeMarker(token,path);
+    }
+  }
+  return {sent,expired};
+}
+export default {
+  async scheduled(controller,env,ctx) { ctx.waitUntil(run(env).catch(e=>console.error("Scheduled push failed:",e))); },
+  async fetch(request,env) {
+    const url = new URL(request.url);
+    const headers = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
+    if (request.method !== "GET") {
+      return Response.json({ok:false,error:"Method not allowed"},{status:405,headers:{...headers,"Allow":"GET"}});
+    }
+    if (url.pathname === "/" || url.pathname === "/health") {
+      return Response.json({ok:true,service:"Lifestyle Push Worker",health:"online"},{headers});
+    }
+    return Response.json({ok:false,error:"Not found"},{status:404,headers});
+  }
+};

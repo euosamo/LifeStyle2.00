@@ -16,4 +16,8 @@
       "enabled": false
     }
   },
- 
+  "functions": {
+    "source": "firebase-functions",
+    "runtime": "nodejs22"
+  }
+}

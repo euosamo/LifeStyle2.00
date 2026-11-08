@@ -20,4 +20,6 @@ const publicFiles = [
 ];
 
 await rm(output, { recursive: true, force: true });
-await mkdir(output, { recursive:
+await mkdir(output, { recursive: true });
+for (const file of publicFiles) await cp(join(root, file), join(output, file));
+console.log(`Prepared Cloudflare Pages static output in ${output} (${publicFiles.length} files).`);

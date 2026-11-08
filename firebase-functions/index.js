@@ -29,4 +29,17 @@ export const deleteOwnAccount = onCall(
     const uid = auth.uid;
     try {
       const userDocument = getFirestore().doc(`users/${uid}`);
-      await getFirestore().recursive
+      await getFirestore().recursiveDelete(userDocument);
+      await getAuth().deleteUser(uid).catch(error => {
+        if (error?.code !== "auth/user-not-found") throw error;
+      });
+      return { deleted: true };
+    } catch (error) {
+      console.error("Account deletion failed; retry may complete remaining cleanup", {
+        uid,
+        code: error?.code || "unknown"
+      });
+      throw new HttpsError("internal", "Löschung nicht vollständig. Bitte nach erneuter Anmeldung wiederholen.");
+    }
+  }
+);

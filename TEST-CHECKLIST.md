@@ -181,4 +181,67 @@ Ein kontrollierter Testbetrieb gilt erst dann als vorbereitet, wenn Emulator-, Z
 - Keine simulierte Firestore-Teillöschung/Permission-Unterbrechung und kein Live-IAM-Test. Firestore `recursiveDelete` ist nicht atomar, obwohl Wiederholung unterstützt wird.
 - No independent security assessment; static and browser checks do not certify general absence of XSS.
 
-### Lokale A
+### Lokale Ausführung
+
+```powershell
+npx firebase emulators:exec --only auth,firestore,functions --project demo-lifestyle-rules "node --test tests/*.test.mjs"
+npx firebase emulators:exec --only auth,firestore,functions --project demo-lifestyle-rules "node tests/local-https-smoke.mjs"
+```
+
+Für Functions: `npm ci --prefix functions`, Java 21, Node 22, Firebase CLI und temporäre lokale TLS-Zertifikatsvariablen vorausgesetzt. Siehe `FIREBASE-SETUP.md` für den reproduzierbaren PowerShell-HTTPS-Ablauf.
+
+### Manuelle Schritte vor kontrolliertem Testbetrieb
+
+1. Firebase Console: Auth-Domains/Methoden/Password Policy/E-Mail-Enumeration prüfen; echte Testdomain freigeben.
+2. App Check Web-Provider/Site-Key einrichten, zuerst Metriken prüfen; mit leerem Site-Key ist Enforcement nicht betriebsbereit.
+3. Billing/Blaze, Function-Region `europe-west3` und Laufzeit-Servicekonto/IAM für Firestore-Unterbaum-Löschung + Auth-User-Verwaltung bestätigen; Function erst nach Freigabe deployen.
+4. Aktive Firestore-Regeln veröffentlichen/prüfen, aktive Cloudflare Pages-Header und CSP im echten Browser verifizieren.
+5. Mit zwei eigens freigegebenen Testkonten auf echten Geräten den gesamten Auth-/Finanz-/Export-/Restore-/Löschablauf sowie Offline- und Synchronisierungsfehler prüfen.
+
+## Node-22-Abschlusswiederholung – 8. November 2026
+
+- Umgebung: Node `v22.23.4` (isolierter npm-cache runtime), Temurin Java `21.0.13`, Firebase CLI `15.35.0`, Projekt `demo-lifestyle-rules`, synthetische Konten/Daten. Functions Emulator bestätigte `Using node@22 from host`.
+- Anfangs schlug ein kalter Functions-Emulatorstart fehl: Function Discovery endete nach 10 Sekunden, der anschließend gestartete Test erhielt 404. Dies wurde als Umgebungs-Timeout diagnostiziert, nicht als erfolgreicher Funktionstest gewertet. Mit `FUNCTIONS_DISCOVERY_TIMEOUT=60000` lud `deleteOwnAccount` erfolgreich; der Workflow und die Anleitung setzen diesen Timeout.
+- Automatisierte vollständige Emulator-Suite: **32 bestanden, 0 fehlgeschlagen**. Enthalten Auth mit zwei Benutzern, Verifizierung/Login/Reset/Logout, Firestore-Regeln, Schema-/Nutzertrennung, Backup/Restore, XSS-/Push-Prüfungen, Pages-Paket und Functions-Löschung/Wiederholung.
+- Nicht-Emulator-Suite unter Node 22: **23 bestanden, 0 fehlgeschlagen** (Backup, Push, statische Sicherheitsprüfung, CSP, Logo/PWA-Assets, Pages-Output-Aufbau).
+- Lokaler HTTPS-Chrome-Smoke unter Node 22 mit allen drei Demo-Emulatoren: **bestanden**. Geprüft: Einnahmen/Ausgaben/Fixkosten/Einmalausgaben/Raten/Sparziele/Kategorien/Notizen und verbundene Konten CRUD, Negativsaldo, Filter/Monatswechsel/Statistiken/Einstellungen, XSS-Teststrings, Export/Restore, Zwei-Konten-Isolation, Auth und serverseitige Testkontolöschung. Desktop 1440×900 und schmaler Smartphone-Viewport; kein horizontaler Überlauf, keine JavaScriptfehler, keine CSP-/Trusted-Types-Verstöße.
+- Emulatoren loggten erwartete `PERMISSION_DENIED`-Ergebnisse bei negativen Rules-Tests. Ein Node-MetadataLookupWarning zur Cloud-Metadata-Umgebung trat bei der lokalen Functions-Ausführung auf, hatte keine Testauswirkung; Emulator-Logs zeigten erfolgreiche Callable-Aufrufe.
+- Diese Ergebnisse beweisen nicht: iPhone Safari/iOS Home-Screen Push, Android-Gerät, echte Push-Zustellung, echte Firebase Auth-Mail, aktive Live-Rules, Firebase App Check-Enforcement, Cloudflare Pages Dashboard-Buildausgabe/-Header, Live-IAM/Region/Billing oder produktive Löschfehlerwiederherstellung.
+
+### Reproduzierbare Node-22-Emulator-Tests (PowerShell)
+
+```powershell
+$node22 = 'C:\Users\User\AppData\Local\npm-cache\_npx\52027bd8fc0022aa\node_modules\node\bin'
+$jdk = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot'
+$env:JAVA_HOME = $jdk
+$env:FUNCTIONS_DISCOVERY_TIMEOUT = '60000'
+$env:PATH = "$node22;$jdk\bin;$env:PATH"
+node --version
+java -version
+npx firebase emulators:exec --only auth,firestore,functions --project demo-lifestyle-rules "node --test tests/*.test.mjs"
+```
+
+Die Node-22-Exe-Pfad-UUID variiert je npm-Cache-Installation; bei bereits installiertem Node 22 `$node22` weglassen und sicherstellen, dass `node --version` vor Teststart `v22` ausgibt.
+
+### Cloudflare Pages-Preview-Voraussetzung
+
+Vor einer Preview die Pages-Projekteinstellung (nicht in diesem Auftrag geändert) auf Build command `node scripts/build-pages.mjs` und Build output directory `dist` setzen. Ohne diese manuelle Einstellung gilt der sichere `dist/`-Paketumfang nicht als tatsächlich ausgeliefert.
+
+Der HTTPS-Smoke-Test wurde gegen das gebaute `dist/` als Webroot wiederholt und bestand. Das Paket enthält exakt zwölf Dateien; Muster für private Schlüssel/Service Accounts/Worker Secrets: 0 Treffer. `firebase login:list` wurde durch `EPERM` beim lokalen CLI-Konfigurationsspeicher blockiert; Live-Einstellungen wurden nicht eingesehen.
+
+Nach der Kontolöschungs-Härtung wurde die Emulator-Suite zunächst mit einem nicht reproduzierbaren Einzelfehler (31/32) beendet; die detaillierte vollständige Wiederholung bestand **32/32**. Der dist-HTTPS-Smoke wurde danach erfolgreich wiederholt. Er injizierte einen synthetischen Fehler in `localStorage.removeItem` und bestätigte die Nutzerwarnung sowie den Reset des In-Memory-Finanzzustands nach der bestätigten Serverlöschung.
+
+Es gab keinen Commit, Push, Merge oder Deploy; `main` sowie produktive Firebase-/Cloudflare-Einstellungen wurden nicht geändert.
+
+## App Check Preview-Nachprüfung – 8. November 2026
+
+- [x] App-Check-Code und Initialisierungsreihenfolge statisch geprüft.
+- [x] CSP ergänzt und mit dem lokalen HTTPS-Chrome-Smoke geprüft.
+- [x] Vom Nutzer bereitgestellten öffentlichen reCAPTCHA Enterprise Site-Key in das Meta-Tag `firebase-app-check-site-key` eintragen.
+- [ ] Auf autorisierter HTTPS-Preview-Domain echte Provider-Ausführung, Token-Ausstellung, Firebase-Anfragen und App Check Metriken prüfen. Enforcement bleibt bis separate Freigabe ausgeschaltet.
+- [x] Emulator-Suite mit Node 22/Java 21: 32/32 bestanden.
+- [x] Statische/Unit-Suite mit Node 22: 23/23 bestanden.
+- [x] Lokaler HTTPS-Chrome-Smoke gegen Demo-Emulatoren: Desktop-/Phone-Viewport, Zwei-Konten-Isolation und CSP ohne Befunde. Der Emulator-Test leert den Production-Key nur in seiner lokalen Testantwort und testet daher keine echte Token-Ausstellung.
+- [ ] Echter reCAPTCHA-Enterprise-Token-Test mit dem bereitgestellten Site-Key: lokaler Versuch unter localhost/Demo-Konfiguration brach im Registrierungsablauf ab; kein Token wurde als erfolgreich nachgewiesen. Auf autorisierter HTTPS-Preview-Domain ausführen.
+- [x] Pages-Build: 12 öffentliche Dateien; Site-Key im `dist/index.html` vorhanden; Firebase-Backend und Firestore Rules ausgeschlossen.
+- [x] Nach Key-Eintrag 55/55 automatisierte Tests bestanden: 23 statische/Unit-Tests und 32 Emulator-Tests mit Node 22/Java 21.

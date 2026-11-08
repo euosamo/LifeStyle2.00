@@ -59,4 +59,25 @@ self.addEventListener('push', event => {
   }));
 });
 
-self.addEventListener('n
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  let targetUrl;
+  try {
+    targetUrl = new URL(event.notification.data?.url || './', self.location.origin);
+    if (targetUrl.origin !== self.location.origin) targetUrl = new URL('./', self.location.origin);
+  } catch (_) {
+    targetUrl = new URL('./', self.location.origin);
+  }
+  const target = targetUrl.href;
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) {
+      if (new URL(client.url).origin === self.location.origin) {
+        await client.focus();
+        if ('navigate' in client && client.url !== target) await client.navigate(target);
+        return;
+      }
+    }
+    if (self.clients.openWindow) await self.clients.openWindow(target);
+  })());
+});

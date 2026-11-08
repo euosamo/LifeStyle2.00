@@ -88,4 +88,41 @@
     if (state.currency !== undefined && !["EUR", "USD", "GBP"].includes(state.currency)) fail("Die Währung wird nicht unterstützt.");
     if (state.monthlySalary !== undefined && (typeof state.monthlySalary !== "number" || !Number.isFinite(state.monthlySalary) || state.monthlySalary < 0 || state.monthlySalary > 1e9)) fail("Der monatliche Lohn ist ungültig.");
     if (state.layoutOrder !== undefined && (!Array.isArray(state.layoutOrder) || state.layoutOrder.length !== 4 || new Set(state.layoutOrder).size !== 4 || state.layoutOrder.some(x => !["fixed", "one", "installments", "goals"].includes(x)))) fail("Die gespeicherte Bereichsreihenfolge ist ungültig.");
-    if (state.layoutVisible !== undefined && (!isRecord(state.layoutVisible) || ["fixed", "one", "instal
+    if (state.layoutVisible !== undefined && (!isRecord(state.layoutVisible) || ["fixed", "one", "installments", "goals"].some(key => typeof state.layoutVisible[key] !== "boolean"))) fail("Die Sichtbarkeitseinstellungen sind ungültig.");
+    if (state.reminders !== undefined) {
+      if (!isRecord(state.reminders)) fail("Die Erinnerungseinstellungen sind ungültig.");
+      for (const key of ["inst", "one", "goals"]) if (state.reminders[key] !== undefined) {
+        const reminder = state.reminders[key];
+        validateReminder(reminder, `Erinnerung ${key}`);
+        if (!Number.isInteger(reminder.day) || reminder.day < 1 || reminder.day > 31 || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time)) fail(`Die Erinnerung ${key} hat ungültige Werte.`);
+      }
+    }
+    return state;
+  }
+
+  function create(state) {
+    validateState(state);
+    const backup = { format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), state };
+    const json = JSON.stringify(backup, null, 2);
+    if (new TextEncoder().encode(json).byteLength > MAX_BYTES) fail("Die Sicherung ist größer als 8 MB und kann nicht exportiert werden.");
+    return json;
+  }
+
+  function parse(json) {
+    if (typeof json !== "string" || new TextEncoder().encode(json).byteLength > MAX_BYTES) fail("Die Sicherungsdatei ist größer als 8 MB oder nicht lesbar.");
+    let value;
+    try { value = JSON.parse(json); } catch (_) { fail("Die Sicherungsdatei ist beschädigt oder kein gültiges JSON."); }
+    let state;
+    if (isRecord(value) && value.format === FORMAT) {
+      if (value.version !== VERSION) fail("Diese Sicherungsversion wird nicht unterstützt.");
+      if (!/^\d{4}-\d{2}-\d{2}T/.test(value.exportedAt || "")) fail("Das Sicherungsdatum ist ungültig.");
+      state = value.state;
+    } else {
+      // Backward-compatible import of the previous raw-state JSON exports.
+      state = value;
+    }
+    return validateState(state);
+  }
+
+  window.LifestyleBackup = Object.freeze({ create, parse, maxBytes: MAX_BYTES, maxRestoreStateBytes: MAX_RESTORE_STATE_BYTES });
+})();

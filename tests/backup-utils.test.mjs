@@ -42,4 +42,21 @@ test("invalid JSON, unsupported versions, unknown fields, and malformed data are
 });
 
 test("dangerous prototype keys and oversized files are rejected", () => {
-  const hostile = JSON.parse(JSON.stringify(validState
+  const hostile = JSON.parse(JSON.stringify(validState()));
+  Object.defineProperty(hostile, "__proto__", { value: { polluted: true }, enumerable: true });
+  assert.throws(() => backup.parse(JSON.stringify(hostile)), /Unbekanntes Datenfeld|unzulässigen Feldnamen/);
+  assert.throws(() => backup.parse(" ".repeat(backup.maxBytes + 1)), /8 MB/);
+});
+
+test("restore size ceiling stays below the Firestore document limit", () => {
+  assert.ok(backup.maxRestoreStateBytes < 1024 * 1024);
+  assert.equal(backup.maxRestoreStateBytes, 700 * 1024);
+});
+
+test("hostile text remains data and is handled by the app HTML escaper", () => {
+  const state = validState();
+  state.notes[0].body = '<img src=x onerror="alert(1)">';
+  assert.equal(backup.parse(backup.create(state)).notes[0].body, state.notes[0].body);
+  const html = readFileSync("app.js", "utf8");
+  assert.match(html, /escapeHTML\(n\.body\)/);
+});

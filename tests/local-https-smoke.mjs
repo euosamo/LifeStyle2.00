@@ -321,4 +321,105 @@ try {
       const exported = await readFile(await downloaded.path(), "utf8");
       const parsed = await page.evaluate(json => window.LifestyleBackup.parse(json), exported);
       assert.equal(parsed.transactions[0].name, "Browser-Test-Einnahme");
-      await assert.rejects(page.evaluate(() => window.LifestyleBackup.parse('{"format":"lifestyle2-backup","version":1,"exportedAt":"2026-11-07T00:00:00.000Z","state":{"transactions":[{"name":"x","date":"x","amount":1,"kind":"Einnahmen","__proto__":{"polluted":t
+      await assert.rejects(page.evaluate(() => window.LifestyleBackup.parse('{"format":"lifestyle2-backup","version":1,"exportedAt":"2026-11-07T00:00:00.000Z","state":{"transactions":[{"name":"x","date":"x","amount":1,"kind":"Einnahmen","__proto__":{"polluted":true}}]}}')));
+      const restored = { ...synthetic, transactions: [{ name: "Wiederhergestellt", date: "2026-11-07", amount: -5, kind: "Ausgaben" }] };
+      const restoreFile = JSON.stringify({ format: "lifestyle2-backup", version: 1, exportedAt: new Date().toISOString(), state: restored });
+      await page.locator("#backupRestoreFile").setInputFiles({ name: "synthetic-backup.json", mimeType: "application/json", buffer: Buffer.from(restoreFile) });
+      await page.locator(".lifestyle-prompt .confirm").click();
+      await page.waitForFunction(() => window.lifestyleGetState().transactions?.[0]?.name === "Wiederhergestellt", null, { timeout: 20000 });
+      await page.evaluate(() => window.lifestyleFlushCloudSave());
+      assert.equal(await page.evaluate(() => window.lifestyleGetState().transactions[0].amount), -5);
+      for (const view of ["home", "bookings", "analytics", "fixed", "one", "installments", "goals", "accounts", "notes", "settings", "personal-settings", "reminders", "backup", "delete-account"]) {
+        await page.evaluate(name => navigate(name), view);
+        const content = await page.locator("#content").innerText();
+        assert.ok(content.trim().length > 0, `page ${view} rendered no content`);
+        const layout = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, viewport: innerWidth }));
+        assert.ok(layout.page <= layout.viewport + 1, `${view} overflows horizontally: ${JSON.stringify(layout)}`);
+        assert.equal(await page.locator(".xss-marker").count(), 0, `hostile saved data rendered as HTML on ${view}`);
+        assert.equal(await page.locator("#content [onclick],#content [onchange],#content [oninput],#content [onfocus],#content [style]").count(), 0, `inline handler/style remains on ${view}`);
+      }
+      console.log("PASS authenticated desktop: existing financial and settings pages render synthetic records without JavaScript page errors or horizontal overflow");
+      await page.setViewportSize({ width: 390, height: 844 });
+      for (const view of ["home", "bookings", "analytics", "fixed", "one", "installments", "goals", "accounts", "notes", "settings", "personal-settings", "reminders", "backup", "delete-account"]) {
+        await page.evaluate(name => navigate(name), view);
+        const layout = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, viewport: innerWidth }));
+        assert.ok(layout.page <= layout.viewport + 1, `phone ${view} overflows horizontally: ${JSON.stringify(layout)}`);
+        assert.equal(await page.locator(".xss-marker").count(), 0, `hostile saved data rendered as HTML on phone ${view}`);
+        assert.equal(await page.locator("#content [onclick],#content [onchange],#content [oninput],#content [onfocus],#content [style]").count(), 0, `phone ${view} has inline handler/style`);
+      }
+      await page.setViewportSize({ width: 1440, height: 900 });
+      console.log("PASS authenticated phone-sized viewport: all financial and settings views fit without inline markup or XSS execution");
+
+      await page.locator('.nav-btn[data-page="more"]').click();
+      await page.locator("#authLogout").click();
+      await page.locator("#authForm").waitFor({ state: "visible", timeout: 20000 });
+      await page.locator("#authEmail").fill(email);
+      await page.locator("#authForgot").click();
+      await page.waitForFunction(() => document.getElementById("authMessage")?.textContent.includes("Falls ein Konto besteht"), null, { timeout: 20000 });
+      const resetCode = await waitForOob(email, "PASSWORD_RESET");
+      await applyOob("resetPassword", { oobCode: resetCode, newPassword: "Lifestyle-UI-Test-456!" });
+      await page.locator("#authEmail").fill(email);
+      await page.locator("#authPassword").fill("Lifestyle-UI-Test-456!");
+      await page.locator("#authForm button[type=submit]").click();
+      await page.locator("#app:not([hidden])").waitFor({ timeout: 30000 });
+      assert.equal(await page.evaluate(() => window.lifestyleGetState().transactions[0]?.name), "Wiederhergestellt");
+      await page.locator('.nav-btn[data-page="more"]').click();
+      await page.locator("#authLogout").click();
+      await page.locator("#authForm").waitFor({ state: "visible", timeout: 20000 });
+      const emailB = `lifestyle-ui-b-${Date.now()}@example.test`;
+      const passwordB = "Lifestyle-UI-B-Test-123!";
+      await page.locator("#authSwitch").click();
+      await page.locator("#authEmail").fill(emailB);
+      await page.locator("#authPassword").fill(passwordB);
+      await page.locator("#authForm button[type=submit]").click();
+      await page.getByText(/Bestätigungs-E-Mail wurde angefordert/).waitFor({ timeout: 20000 });
+      await applyOob("update", { oobCode: await waitForOob(emailB, "VERIFY_EMAIL") });
+      await page.locator("#checkVerification").click();
+      await page.locator("#app:not([hidden])").waitFor({ timeout: 30000 });
+      await page.locator("#welcomeSkip").waitFor({ state: "visible", timeout: 5000 }).then(() => page.locator("#welcomeSkip").click()).catch(() => {});
+      await page.locator("#guideSkip").waitFor({ state: "visible", timeout: 5000 }).then(() => page.locator("#guideSkip").click()).catch(() => {});
+      await page.locator("#pushLater").waitFor({ state: "visible", timeout: 5000 }).then(() => page.locator("#pushLater").click()).catch(() => {});
+      assert.equal(await page.evaluate(() => window.lifestyleGetState().transactions.some(item => item.name === "Wiederhergestellt")), false, "Account B must not see account A financial data");
+      await page.locator('.nav-btn[data-page="more"]').click();
+      await page.locator("#authLogout").click();
+      await page.locator("#authEmail").fill(email);
+      await page.locator("#authPassword").fill("Lifestyle-UI-Test-456!");
+      await page.locator("#authForm button[type=submit]").click();
+      await page.locator("#app:not([hidden])").waitFor({ timeout: 30000 });
+      assert.equal(await page.evaluate(() => window.lifestyleGetState().transactions[0]?.name), "Wiederhergestellt", "Account A data must remain after switching back");
+      await page.evaluate(() => {
+        const userPrefix = window.lifestyleUserStorageKey;
+        const removeItem = Storage.prototype.removeItem;
+        Storage.prototype.removeItem = function (key) {
+          if (String(key).startsWith(userPrefix)) throw new DOMException("Synthetic storage deletion failure", "SecurityError");
+          return removeItem.call(this, key);
+        };
+      });
+      await page.evaluate(() => { window.appConfirm = async () => true; window.appPrompt = async () => "Lifestyle-UI-Test-456!"; });
+      await page.evaluate(() => navigate("delete-account"));
+      await page.locator("#content button").getByText("Konto dauerhaft löschen").click();
+      await page.locator("#authForm").waitFor({ state: "visible", timeout: 30000 });
+      await page.waitForFunction(() => document.getElementById("authMessage")?.textContent.includes("lokale Gerätedaten konnten nicht vollständig entfernt werden"), null, { timeout: 10000 });
+      assert.equal(await page.evaluate(() => window.lifestyleGetState().transactions.length), 0, "deleted account financial state must be removed from memory");
+      await page.locator("#authEmail").fill(email);
+      await page.locator("#authPassword").fill("Lifestyle-UI-Test-456!");
+      await page.locator("#authForm button[type=submit]").click();
+      await page.waitForFunction(() => /Anmeldung fehlgeschlagen|stimmt nicht|gibt es noch kein Konto/i.test(document.getElementById("authMessage")?.textContent || ""), null, { timeout: 20000 });
+      assert.equal(await page.locator("#app").isVisible(), false, "Deleted account A must no longer sign in");
+      await page.locator("#authEmail").fill(emailB);
+      await page.locator("#authPassword").fill(passwordB);
+      await page.locator("#authForm button[type=submit]").click();
+      await page.locator("#app:not([hidden])").waitFor({ timeout: 30000 });
+      assert.equal(await page.evaluate(() => window.lifestyleGetState().transactions.some(item => item.name === "Wiederhergestellt")), false, "Account B must remain active and isolated after deleting A");
+      console.log("PASS HTTPS desktop: two-account isolation, registration, email verification, cloud data load, synthetic export/restore/validation, password reset, sign-in, logout, owner-scoped account deletion, and visible local-cache cleanup failure");
+    }
+    await context.close();
+    console.log(`PASS HTTPS ${viewport.name}: login gate and original logo render; no horizontal overflow`);
+  }
+  assert.deepEqual(errors, [], `Browser JavaScript errors: ${errors.join("; ")}`);
+  assert.deepEqual([...cspFindings], [], `CSP/Trusted Types violations: ${[...cspFindings].join("; ")}`);
+  console.log(`CSP enforcement + report-only findings: ${[...cspFindings].join(", ") || "none"}`);
+} finally {
+  await browser.close();
+  await new Promise(resolveClose => server.close(resolveClose));
+}

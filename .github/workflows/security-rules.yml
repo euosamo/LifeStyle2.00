@@ -36,4 +36,10 @@ jobs:
           npm ci --prefix firebase-functions
       - name: Syntax-check runtime modules
         run: |
-          node --check --input-
+          node --check --input-type=module < firebase-login.js
+          node --check --input-type=module < push-worker/src/index.js
+          node --check firebase-functions/index.js
+      - name: Test Firestore rules in emulator
+        env:
+          FUNCTIONS_DISCOVERY_TIMEOUT: 60000
+        run: npx firebase emulators:exec --only firestore,auth,functions --project demo-lifestyle-rules "node --test tests/*.test.mjs"

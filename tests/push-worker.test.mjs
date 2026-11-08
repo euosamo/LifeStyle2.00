@@ -8,4 +8,7 @@ test("push marker IDs encode German and Unicode reminder text safely", () => {
   assert.equal(decoded, text);
 });
 
-test("push marker ID
+test("push marker IDs use URL-safe unpadded base64", () => {
+  const encoded = b64url("safe/id+value=");
+  assert.doesNotMatch(encoded, /[+/=]/);
+});

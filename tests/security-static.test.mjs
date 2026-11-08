@@ -164,4 +164,64 @@ test("Cloudflare response headers provide core browser protections", () => {
 });
 
 test("Pages build output contains only public app files and never Firebase backend source", () => {
-  const result = spawnSync(process.execPath, ["scripts/build-pages.mjs"], {
+  const result = spawnSync(process.execPath, ["scripts/build-pages.mjs"], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  for (const file of ["index.html", "app.js", "firebase-login.js", "_headers", "manifest.webmanifest", "apple-touch-icon.png.png"]) {
+    assert.ok(existsSync(`dist/${file}`), `public file missing: ${file}`);
+  }
+  for (const file of ["firebase-functions/index.js", "firestore.rules", "tests/security-static.test.mjs"]) {
+    assert.equal(existsSync(`dist/${file}`), false, `private/build-only file unexpectedly published: ${file}`);
+  }
+});
+
+test("authenticated cloud-load failures are distinct from login failures and recoverable", () => {
+  const auth = read("firebase-login.js");
+  assert.match(auth, /function showCloudLoadFailure\(error\)/);
+  assert.match(auth, /sign-in succeeded, but private data could not be loaded/);
+  assert.match(auth, /auth\/unauthorized-domain/);
+  assert.match(auth, /auth\/invalid-api-key/);
+  assert.match(auth, /authRetryData/);
+});
+
+test("notification clicks cannot navigate outside the app origin", () => {
+  const worker = read("sw.js");
+  assert.match(worker, /targetUrl\.origin !== self\.location\.origin/);
+  assert.match(worker, /new URL\('\.\/', self\.location\.origin\)/);
+});
+
+test("push worker only sends to trusted browser push providers", () => {
+  const worker = read("push-worker/src/index.js");
+  assert.match(worker, /trustedPushHost/);
+  assert.match(worker, /host==="fcm\.googleapis\.com"/);
+  assert.match(worker, /host==="web\.push\.apple\.com"/);
+  assert.match(worker, /host\.endsWith\("\.notify\.windows\.com"\)/);
+  assert.match(worker, /Array\.isArray\(safeState\.notes\)/);
+  assert.match(worker, /localParts\(now,"Europe\/Berlin"\)/);
+  assert.match(worker, /slice\(0,220\)/);
+  assert.match(worker, /state\.reminders.*state\.notes.*state\.one.*state\.inst/);
+  assert.match(worker, /structuredQuery\.select=\{fields:fieldPaths\.map/);
+});
+
+test("push worker public endpoint is read-only and cache-safe", () => {
+  const worker = read("push-worker/src/index.js");
+  assert.match(worker, /request\.method !== "GET"/);
+  assert.match(worker, /"Cache-Control": "no-store"/);
+  assert.match(worker, /endpoint\.username \|\| endpoint\.password/);
+  assert.match(worker, /endpoint\.port && endpoint\.port !== "443"/);
+});
+
+test("push marker IDs use UTF-8-safe encoding", () => {
+  assert.match(read("push-worker/src/index.js"), /import \{ b64url \} from "\.\/encoding\.js"/);
+  assert.match(read("push-worker/src/encoding.js"), /new TextEncoder\(\)\.encode/);
+});
+
+test("Firestore rules require verified ownership and deny unmatched paths", () => {
+  const rules = read("firestore.rules");
+  assert.match(rules, /request\.auth\.uid == userId/);
+  assert.match(rules, /request\.auth\.token\.email_verified == true/);
+  assert.match(rules, /request\.resource\.data\.revision == 1/);
+  assert.match(rules, /request\.resource\.data\.revision == resource\.data\.revision \+ 1/);
+  assert.match(rules, /match \/\{document=\*\*\}/);
+  assert.match(rules, /allow read, write: if false/);
+});
+

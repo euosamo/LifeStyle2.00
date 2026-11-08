@@ -125,4 +125,46 @@ Diese Liste beschreibt noch nicht vorgenommene Console-Einstellungen. Firebase-P
 
 - Der ältere Hinweis weiter oben, dass `unsafe-inline` in Attributdirektiven verbleibe, ist überholt. Die erzwungene CSP setzt jetzt `script-src-attr 'none'` und `style-src-attr 'none'`; `unsafe-inline` kommt in keiner CSP-Direktive vor. Der lokale Chrome-Lauf meldete unter erzwungener Policy und Trusted Types keine Verletzung. Vor Auslieferung müssen Cloudflare-Pages-Header dennoch separat kontrolliert werden.
 - Kontolöschung ist jetzt für einen späteren Backend-Deploy als Callable Function `deleteOwnAccount` unter `functions/` vorbereitet. Das Backend prüft Auth, verifizierte E-Mail und höchstens fünf Minuten alte Authentifizierung, löscht ausschließlich den UID-eigenen Firestore-Unterbaum und anschließend Auth. Die Funktion wird durch App Check geschützt, sobald sie außerhalb des Emulatorbetriebs ausgeführt wird. Browser-Push-Abmeldung ist zusätzlich best effort; gespeicherte Push-Abonnements im Firestore-User-Unterbaum werden rekursiv entfernt.
-- Firestore `recurs
+- Firestore `recursiveDelete` und Firebase Auth sind keine gemeinsame Transaktion. Der Ablauf kann bei Infrastrukturfehlern teilweise gelöscht werden; erneute Aufrufe schließen die Bereinigung ab. Die App muss bei einem Fehler die Wiederholung ermöglichen. Ein nachgewiesener Emulatorlauf ersetzt keine Fehler-/IAM-Tests im tatsächlichen Projekt.
+- Lokal ist ein eigenes Firebase-Functions-Codeverzeichnis mit Node.js-22-Runtime angelegt. Firebase Functions 2nd gen setzt für den späteren Cloud-Einsatz Blaze/Abrechnung, korrekte Region und passende minimale IAM-Rechte für Firestore-Löschung und Firebase-Auth-Benutzerverwaltung voraus. Die Region `europe-west3` ist im Code festgelegt; vor der Einrichtung gegen den Firestore-Standort und die gewünschte Datenresidenz prüfen.
+- Historischer Zwischenstand; maßgeblich sind die aktuelle Anleitung oben und `firebase-functions/package-lock.json` (`npm ci --prefix firebase-functions`). Die Function ist weiterhin nicht deployed.
+- Vor Regelveröffentlichung die aktive Regelversion mit `firestore.rules` vergleichen. Die lokale `firebase.json` enthält nun zusätzlich Functions-Emulator und Function-Codequelle; dadurch wurde kein Cloud-Projekt ausgewählt oder geändert. Kein `.firebaserc` wurde angelegt.
+- App Check: den Site-Key in `index.html` erst nach Einrichtung setzen. Da die Function Enforcement außerhalb des Emulators verlangt, kann Kontolöschung bis zum tatsächlichen App-Check-Setup/Token-Test fehlschlagen. Firestore/App-Check/Auth-Enforcement in der Console zunächst beobachten, dann einzeln nach erfolgreicher Prüfung erzwingen; Authentication-App-Check kann Identity Platform voraussetzen.
+- Historischer Teststand vor der Node-22-Wiederholung: **31/31**. Der maßgebliche Node-22-Lauf mit **32/32** steht am Dokumentende.
+- Weiterhin offen sind echter iPhone/Android-Test, Prüfung der Authorized Domains und aktiven Regeln/Headers in den jeweiligen Consolen, App-Check-Metriken/Enforcement, E-Mail-Versand, Laufzeit-IAM und ein Recovery-Test nach absichtlich fehlgeschlagener Function-/Firestore-Bereinigung.
+
+Ausführbare lokale Folge aus dem Projektordner (JDK 21 und Node 22 installieren/auswählen):
+
+```powershell
+ npm ci --prefix firebase-functions
+$env:FUNCTIONS_DISCOVERY_TIMEOUT = '60000'
+npx firebase emulators:exec --only auth,firestore,functions --project demo-lifestyle-rules "node --test tests/*.test.mjs"
+# Danach mit gesetzten LIFESTYLE_LOCAL_TLS_PFX und LIFESTYLE_CHROME_PATH:
+npx firebase emulators:exec --only auth,firestore,functions --project demo-lifestyle-rules "node tests/local-https-smoke.mjs"
+```
+
+Die Demo-Projekt-ID verhindert produktive Firebase-Aufrufe der Emulator-Suite. Der Browser-Smoke-Test ersetzt Client-Konfiguration nur im lokalen HTTPS-Response.
+
+### Tatsächlich reproduzierter Abschlusslauf unter Node 22 – 8. November 2026
+
+- Node `v22.23.4`; Temurin Java `21.0.13`; Firebase CLI 15.35.0; Emulator-Projekt `demo-lifestyle-rules`.
+- Emulator-Automatik: **32/32 bestanden**. Der Functions Emulator meldete ausdrücklich `Using node@22 from host`. `FUNCTIONS_DISCOVERY_TIMEOUT=60000` ist für den kalten Start erforderlich; mit dem Standard-Timeout lud die Function nicht schnell genug und der Kontolöschungstest schlug fehl. Mit erweitertem Timeout wurden alle Tests bestanden.
+- Statische/Unit-Suite ohne Emulator: **23/23 bestanden**.
+- HTTPS Chrome Smoke direkt gegen den gebauten `dist/`-Ordner mit allen drei Emulatoren: bestanden bei Desktop und Smartphone-Viewport, inklusive Finanzfunktionen, Auth, zwei Konten, XSS-Payloads, Export/Restore, Kontolöschung und CSP. JavaScript-Fehler sowie CSP-/Trusted-Types-Meldungen: keine.
+- Kontolöschung unter synthetisch blockiertem lokalem Storage-Remove: sichtbarer Warnhinweis bei unvollständiger Cache-Löschung, Reset des In-Memory-Finanzzustands und erfolgreiche serverseitige Löschung im Emulator.
+- Vollständiger Pages-Build unter Node 22 erstellte genau zwölf Dateien; jede wurde byteweise mit ihrem Quell-Asset verglichen. Sicherheitsmustersuche fand keine privaten Schlüssel, Service-Account-Credentials oder Worker-Secrets. Öffentliche Firebase-Web-API-Konfiguration und VAPID-Public-Key bleiben erwartungsgemäß Client-Konfiguration.
+- Pages-Paketaufbau: explizite Whitelist nach `dist/`, `_headers` vorhanden, Backend/Rules/Tests nicht enthalten. HTTPS-Smoke-Test akzeptiert `LIFESTYLE_WEB_ROOT`, um genau dieses Paket zu servieren.
+- `npm audit --prefix firebase-functions --omit=dev`: **0 bekannte Schwachstellen**; der erste DNS-Fehler wurde beim erneuten Versuch überwunden.
+- Keine Live-Console oder echte Geräte geprüft; siehe manuelle Aufgaben und `TEST-CHECKLIST.md`.
+- `firebase login:list --json` konnte wegen `EPERM` beim lokalen Firebase-CLI-Konfigurationsspeicher keine belastbare Konto-/Projektliste liefern. Cloudflare-Projekt-/Dashboardstatus war in dieser Arbeitsumgebung ebenfalls nicht lesbar.
+
+## reCAPTCHA Enterprise App Check Nachprüfung – 8. November 2026
+
+- `firebase-login.js` initialisiert `initializeAppCheck` direkt nach `initializeApp` und vor Auth, Firestore und Functions. Es verwendet `ReCaptchaEnterpriseProvider` mit dem öffentlichen Site-Key aus `meta[name="firebase-app-check-site-key"]` und `isTokenAutoRefreshEnabled: true`.
+- Der Nutzer hat den öffentlichen Site-Key bereitgestellt und er ist jetzt in `index.html` gesetzt. Der Client kann damit den echten reCAPTCHA Enterprise Provider initialisieren. Erfolgreiche Token-Ausstellung und -Validierung gegen Firebase müssen auf einer autorisierten HTTPS-Domain separat nachgewiesen werden.
+- Der lokale Emulator-UI-Smoke entfernt den Production-Site-Key ausschließlich aus der lokal ausgelieferten Testantwort, weil er die Firebase-Konfiguration auf ein Demo-Projekt und Auth/Firestore/Functions auf Emulatoren umbiegt. Das verhindert die Vermischung von Production App Check mit synthetischen Emulator-Credentials; der Build-Output selbst behält den Site-Key.
+- Die erzwungene CSP und Report-Only-CSP erlauben nun zusätzlich `https://recaptcha.google.com/recaptcha/` für Frames. Weitere reCAPTCHA Enterprise Script-, Frame- und Connect-Hosts sind vorhanden. `unsafe-inline` bleibt vollständig entfernt.
+- CSP-Änderung bestand statische Prüfung und lokalen HTTPS-Chrome-Smoke gegen Demo-Emulatoren ohne CSP-/Trusted-Types-Befund. Ein früher Versuch mit Site-Key im lokalen Demo-Emulator-Browser brach beim Registrierungsablauf ab; es wurde kein Token-Nachweis ausgegeben. Der erfolgreiche Emulator-Smoke leert den Key nur in der lokalen HTTP-Testantwort und prüft deshalb keine echte reCAPTCHA-Token-Ausstellung.
+- App Check Enforcement wurde nicht aktiviert oder geändert. Auf einer freigegebenen autorisierten HTTPS-Preview-Domain App-Check-Metriken beobachten; Enforcement bleibt bis zu separater ausdrücklicher Freigabe ausgeschaltet.
+- Nach Eintrag des Keys: statische/Unit-Tests **23/23 bestanden**, Auth/Firestore/Functions-Emulator-Tests **32/32 bestanden** (Node 22.23.4, Java 21.0.13). Lokaler HTTPS-Chrome-Smoke mit Demo-Emulatoren bestanden; der Test überschreibt den Meta-Key nur in seiner Testantwort und meldet keine CSP-/Trusted-Types- oder JavaScript-Fehler.
+- Pages-Build erzeugte `dist/` mit 12 Dateien; der öffentliche Site-Key ist bytegenau im Meta-Tag von `dist/index.html` enthalten. `firebase-functions/` und `firestore.rules` sind nicht enthalten. Ein echter Token wurde nicht bestätigt: der Versuch mit Produktions-Key und localhost/Demo-Konfiguration brach im Auth-Registrierungsschritt ab, ohne Tokenbeleg. Für einen aussagekräftigen Token-Test ist die tatsächliche autorisierte HTTPS-Domain erforderlich.

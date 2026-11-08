@@ -3,4 +3,5 @@
 /dist/
 /.firebase-cli-local/
 /firestore-debug.log
-/brow
+/browser-smoke.log
+/emulator-suite.log
