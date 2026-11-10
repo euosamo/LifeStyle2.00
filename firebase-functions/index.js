@@ -128,10 +128,19 @@ export const saveOwnAppData = onCall(
           return;
         }
 
+        const encodedState = encodeFirestoreValue(nextState);
+        const encodedBytes = Buffer.byteLength(JSON.stringify(encodedState), "utf8");
+        if (encodedBytes > 950 * 1024) {
+          throw new HttpsError(
+            "invalid-argument",
+            "Die Finanzdaten sind nach der Firestore-Kodierung zu groß. Bitte Einträge archivieren."
+          );
+        }
+
         savedState = nextState;
         savedRevision = revision + 1;
         transaction.set(document, {
-          state: encodeFirestoreValue(nextState),
+          state: encodedState,
           revision: savedRevision,
           updatedAt: new Date()
         });
