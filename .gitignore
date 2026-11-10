@@ -1,0 +1,7 @@
+/node_modules/
+/firebase-functions/node_modules/
+/dist/
+/.firebase-cli-local/
+/firestore-debug.log
+/browser-smoke.log
+/emulator-suite.log

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#061323"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- Dedicated staging entry point. Replace placeholders only with values from Firebase project lifestyle200-staging. -->
+<meta name="firebase-environment" content="staging">
+<meta name="firebase-staging-api-key" content="AIzaSyB6aWHfUix_x6HvHDNw1-kx6_nPBnhu7iU">
+<meta name="firebase-staging-auth-domain" content="lifestyle200-staging.firebaseapp.com">
+<meta name="firebase-staging-project-id" content="lifestyle200-staging">
+<meta name="firebase-staging-storage-bucket" content="lifestyle200-staging.firebasestorage.app">
+<meta name="firebase-staging-messaging-sender-id" content="597956662554">
+<meta name="firebase-staging-app-id" content="1:597956662554:web:3a1182d7f15b89ac9908a3">
+<meta name="firebase-staging-app-check-site-key" content="6LeNHRguAAAAABXpe0y0EIrV3GpTUw3gaPO1FGaf">
+<title>Finanzen – Übersicht</title>
+<link rel="stylesheet" href="./styles.css">
+
+<!-- PWA manifest intentionally omitted from staging preview. -->
+<link rel="icon" type="image/png" sizes="180x180" href="./apple-touch-icon.png.png">
+
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png.png">
+<meta name="apple-mobile-web-app-title" content="Lifestyle Finanzen">
+</head>
+<body>
+<section id="authGate" aria-live="polite">
+  <div class="auth-card">
+    <img class="auth-logo" src="./apple-touch-icon.png.png" width="180" height="180" alt="Lifestyle LS-Logo"><div class="auth-brand">Lifestyle Finanzen</div>
+    <h1 id="authTitle">Willkommen zurück</h1>
+    <p id="authSubtitle">Melde dich an, um deine Finanzen zu öffnen.</p>
+    <form id="authForm">
+      <label for="authEmail">E-Mail-Adresse</label><input id="authEmail" type="email" autocomplete="email" required>
+      <label for="authPassword">Passwort</label><input id="authPassword" type="password" autocomplete="current-password" minlength="6" required><small id="authPasswordHint" class="auth-message" aria-live="polite"></small>
+      <button id="authSubmit" type="submit">Anmelden</button>
+    </form>
+    <button id="authForgot" class="secondary" type="button">Passwort vergessen?</button>
+    <button id="authSwitch" class="secondary" type="button">Neues Konto erstellen</button>
+    <p id="authMessage" class="auth-message"></p>
+    <p>Deine Finanzdaten werden nach Einrichtung des Online-Speichers getrennt pro Konto gespeichert.</p>
+  </div>
+</section>
+<button id="authLogout" type="button" hidden>Abmelden</button>
+
+<div class="app" id="app" hidden>
+  <div id="topline" class="topline"></div>
+  <main id="content" class="content"></main>
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="home"><span class="nav-icon">⌂</span><span>Startseite</span></button>
+    <button class="nav-btn" data-page="bookings"><span class="nav-icon">▤</span><span>Buchungen</span></button>
+    <button class="nav-btn" data-page="analytics"><span class="nav-icon">▥</span><span>Auswertung</span></button>
+    <button class="nav-btn" data-page="more"><span class="nav-icon">⋮</span><span>Mehr</span></button>
+  </nav>
+</div>
+<script src="./backup-utils.js"></script>
+<script src="./app.js"></script>
+
+<script type="module" src="./firebase-login.js"></script>
+
+<!-- Service worker intentionally disabled in staging preview to avoid sharing production cache. -->
+</body></html>

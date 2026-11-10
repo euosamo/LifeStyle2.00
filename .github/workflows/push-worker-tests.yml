@@ -1,0 +1,111 @@
+name: Push worker tests
+
+on:
+  push:
+    branches:
+      - cleanup-hardening-2026-11-10
+  pull_request:
+    branches:
+      - cleanup-hardening-2026-11-10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  push-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install push worker dependencies
+        working-directory: push-worker
+        run: npm install --no-audit --no-fund
+      - name: Run push worker tests
+        run: node --test tests/push-worker.test.mjs
+
+  staging-entry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test isolated staging entry point
+        run: node --test tests/staging-entry.test.mjs
+
+  firebase-environment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test production and staging Firebase isolation
+        run: node --test tests/firebase-environment.test.mjs
+
+  finance-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firebase Functions dependencies
+        working-directory: firebase-functions
+        run: npm install --no-audit --no-fund
+      - name: Check Firebase Functions syntax
+        run: node --check firebase-functions/index.js
+      - name: Run server-side finance validation tests
+        run: node --test tests/firebase-functions-validation.test.mjs
+
+  firebase-callables-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firebase emulator test dependencies
+        run: npm install --no-save --no-package-lock firebase firebase-admin firebase-functions firebase-tools
+      - name: Install Functions dependencies
+        working-directory: firebase-functions
+        run: npm install --no-audit --no-fund
+      - name: Run callable integration tests against Auth, Firestore and Functions emulators
+        run: npx firebase emulators:exec --only auth,firestore,functions --project demo-lifestyle-integration "node --test tests/firebase-callables.integration.test.mjs"
+
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Java for Firestore emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firestore rules test dependencies
+        run: npm install --no-save --no-package-lock firebase firebase-admin @firebase/rules-unit-testing firebase-tools
+      - name: Run Firestore rules emulator tests
+        run: npx firebase emulators:exec --only firestore --project demo-lifestyle-rules "node --test tests/firestore.rules.test.mjs"
