@@ -116,7 +116,8 @@ export function encodeFirestoreValue(value, arrayElement = false) {
   if (value && typeof value === "object") {
     const out = {};
     for (const [key, item] of Object.entries(value)) {
-      const safeKey = /^__.*__$/.test(key) ? ESCAPED_PREFIX + encodeURIComponent(key) : key;
+      const safeKey = /^__.*__$/.test(key) || key === ARRAY_TAG || key.startsWith(ESCAPED_PREFIX)
+        ? ESCAPED_PREFIX + encodeURIComponent(key) : key;
       out[safeKey] = encodeFirestoreValue(item, false);
     }
     return out;
@@ -138,7 +139,7 @@ export function decodeFirestoreValue(value) {
       if (key.startsWith(ESCAPED_PREFIX)) {
         try {
           const original = decodeURIComponent(key.slice(ESCAPED_PREFIX.length));
-          if (/^__.*__$/.test(original)) decodedKey = original;
+          if (/^__.*__$/.test(original) || original === ARRAY_TAG || original.startsWith(ESCAPED_PREFIX)) decodedKey = original;
         } catch (_) {}
       }
       out[decodedKey] = decodeFirestoreValue(item);
