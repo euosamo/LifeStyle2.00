@@ -2,7 +2,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { validateAppState, validateAppStateBase, encodeFirestoreValue, decodeFirestoreValue } from "./app-data-validation.js";
+import { validateAppState, validateAppStateBase, encodeFirestoreValue, decodeFirestoreValue, mergeAppState } from "./app-data-validation.js";
 
 initializeApp();
 const REGION = "europe-west3";
@@ -90,24 +90,7 @@ export const saveOwnAppData = onCall(
           throw new HttpsError("failed-precondition", "Ungültige oder ausgeschöpfte Datenrevision.");
         }
         const remoteState = current.exists ? decodeFirestoreValue(currentData.state || {}) : {};
-        const nextState = { ...remoteState };
-        const changedKeys = new Set([...Object.keys(base), ...Object.keys(incoming)]);
-        const conflicts = [];
-        for (const key of changedKeys) {
-          const baseValue = JSON.stringify(base[key]);
-          const localValue = JSON.stringify(incoming[key]);
-          const remoteValue = JSON.stringify(remoteState[key]);
-          const localChanged = localValue !== baseValue;
-          const remoteChanged = remoteValue !== baseValue;
-
-          if (localChanged && remoteChanged && localValue !== remoteValue) {
-            conflicts.push(key);
-            continue;
-          }
-          if (!localChanged) continue;
-          if (Object.hasOwn(incoming, key)) nextState[key] = incoming[key];
-          else delete nextState[key];
-        }
+        const { state: nextState, conflicts } = mergeAppState(base, incoming, remoteState);
         if (conflicts.length) {
           throw new HttpsError(
             "aborted",
