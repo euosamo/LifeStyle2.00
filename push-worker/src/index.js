@@ -33,7 +33,7 @@ function val(v) {
   return v;
 }
 function fields(doc) { return Object.fromEntries(Object.entries(doc.fields||{}).map(([k,v])=>[k,val(v)])); }
-async function collectionGroup(token,name,fieldPaths) {
+export async function collectionGroup(token,name,fieldPaths) {
   const results=[];
   let lastName=null;
   for (;;) {
@@ -68,7 +68,7 @@ async function marker(token,path,create) {
 async function removeMarker(token,path) {
   await fetch(FIRESTORE+"/"+path,{method:"DELETE",headers:{authorization:"Bearer "+token}});
 }
-async function removeSubscription(token,documentName) {
+export async function removeSubscription(token,documentName) {
   const prefix=`projects/${PROJECT_ID}/databases/(default)/documents/`;
   if(typeof documentName!=="string" || !documentName.startsWith(prefix)) throw new Error("Invalid push subscription document path.");
   const path=documentName.slice(prefix.length);
