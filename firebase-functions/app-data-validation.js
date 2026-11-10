@@ -123,3 +123,27 @@ export function encodeFirestoreValue(value, arrayElement = false) {
   }
   return value;
 }
+
+export function decodeFirestoreValue(value) {
+  const ARRAY_TAG = "lifestyleFirestoreNestedArrayV1";
+  const ESCAPED_PREFIX = "lifestyleFirestoreEscapedField_";
+  if (Array.isArray(value)) return value.map(decodeFirestoreValue);
+  if (value && typeof value === "object") {
+    if (value[ARRAY_TAG] === true && Array.isArray(value.items)) {
+      return value.items.map(decodeFirestoreValue);
+    }
+    const out = {};
+    for (const [key, item] of Object.entries(value)) {
+      let decodedKey = key;
+      if (key.startsWith(ESCAPED_PREFIX)) {
+        try {
+          const original = decodeURIComponent(key.slice(ESCAPED_PREFIX.length));
+          if (/^__.*__$/.test(original)) decodedKey = original;
+        } catch (_) {}
+      }
+      out[decodedKey] = decodeFirestoreValue(item);
+    }
+    return out;
+  }
+  return value;
+}
