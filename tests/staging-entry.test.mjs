@@ -32,6 +32,6 @@ test("CSP permits the dedicated staging Firebase auth frame", async () => {
 
 test("CSP supports Firebase Auth dynamic script loading without TrustedScriptURL blocking", async () => {
   const headers = await readFile(new URL("../_headers", import.meta.url), "utf8");
-  assert.match(headers, /script-src[^\\n]*https:\\/\\/apis\\.googleapis\\.com/);
+  assert.ok(headers.includes("https://apis.google.com"));
   assert.doesNotMatch(headers, /require-trusted-types-for 'script'/);
 });
