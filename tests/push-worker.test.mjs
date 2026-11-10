@@ -83,3 +83,55 @@ test("removeSubscription deletes only a valid user's push subscription document"
     globalThis.fetch = originalFetch;
   }
 });
+
+test("removeSubscription rejects malformed document IDs before making a request", async () => {
+  const originalFetch = globalThis.fetch;
+  let called = false;
+  globalThis.fetch = async () => {
+    called = true;
+    return new Response(null, { status: 204 });
+  };
+  try {
+    await assert.rejects(
+      removeSubscription(
+        "test-token",
+        "projects/lifestyle2-login/databases/(default)/documents/users/user-123/pushSubscriptions/not-a-sha"
+      ),
+      /Invalid push subscription document path/
+    );
+    assert.equal(called, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("removeSubscription treats an already missing subscription as cleaned up", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(null, { status: 404 });
+  try {
+    await assert.doesNotReject(
+      removeSubscription(
+        "test-token",
+        "projects/lifestyle2-login/databases/(default)/documents/users/user-123/pushSubscriptions/0123456789abcdef0123456789abcdef01234567"
+      )
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("removeSubscription reports unexpected Firestore deletion errors", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("permission denied", { status: 403 });
+  try {
+    await assert.rejects(
+      removeSubscription(
+        "test-token",
+        "projects/lifestyle2-login/databases/(default)/documents/users/user-123/pushSubscriptions/0123456789abcdef0123456789abcdef01234567"
+      ),
+      /cleanup failed: 403/
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
