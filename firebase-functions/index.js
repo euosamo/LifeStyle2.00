@@ -91,10 +91,28 @@ export const saveOwnAppData = onCall(
         const remoteState = current.exists ? decodeFirestoreValue(currentData.state || {}) : {};
         const nextState = { ...remoteState };
         const changedKeys = new Set([...Object.keys(base), ...Object.keys(incoming)]);
+        const conflicts = [];
         for (const key of changedKeys) {
-          if (JSON.stringify(base[key]) === JSON.stringify(incoming[key])) continue;
+          const baseValue = JSON.stringify(base[key]);
+          const localValue = JSON.stringify(incoming[key]);
+          const remoteValue = JSON.stringify(remoteState[key]);
+          const localChanged = localValue !== baseValue;
+          const remoteChanged = remoteValue !== baseValue;
+
+          if (localChanged && remoteChanged && localValue !== remoteValue) {
+            conflicts.push(key);
+            continue;
+          }
+          if (!localChanged) continue;
           if (Object.hasOwn(incoming, key)) nextState[key] = incoming[key];
           else delete nextState[key];
+        }
+        if (conflicts.length) {
+          throw new HttpsError(
+            "aborted",
+            "Gleichzeitige Änderungen erkannt. Bitte synchronisieren und erneut speichern.",
+            { fields: conflicts }
+          );
         }
 
         try {
