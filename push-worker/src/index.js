@@ -53,6 +53,14 @@ async function marker(token,path,create) {
 async function removeMarker(token,path) {
   await fetch(FIRESTORE+"/"+path,{method:"DELETE",headers:{authorization:"Bearer "+token}});
 }
+async function removeSubscription(token,documentName) {
+  const prefix=`projects/${PROJECT_ID}/databases/(default)/documents/`;
+  if(typeof documentName!=="string" || !documentName.startsWith(prefix)) throw new Error("Invalid push subscription document path.");
+  const path=documentName.slice(prefix.length);
+  if(!/^users\/[^/]+\/pushSubscriptions\/[0-9a-f]{40}$/.test(path)) throw new Error("Invalid push subscription document path.");
+  const response=await fetch(FIRESTORE+"/"+path,{method:"DELETE",headers:{authorization:"Bearer "+token}});
+  if(!response.ok && response.status!==404) throw new Error("Expired push subscription cleanup failed: "+response.status);
+}
 function localParts(date,tz) {
   const p=new Intl.DateTimeFormat("en-CA",{timeZone:tz,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);
   return Object.fromEntries(p.map(x=>[x.type,x.value]));
@@ -102,7 +110,7 @@ function dueList(state,now,tz) {
   return out;
 }
 async function run(env) {
-  if(!env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.VAPID_PRIVATE_KEY) throw new Error("Fehlende Worker-Secrets.");
+  if(!env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) throw new Error("Fehlende Worker-Secrets oder VAPID-Konfiguration.");
   const token=await accessToken(env);
   // Only fetch the fields required to build reminders. Do not return transaction,
   // balance, account, goal, or category data to the push worker.
@@ -116,7 +124,7 @@ async function run(env) {
     if(!m || !s.data.subscription?.endpoint) continue;
     const arr=subByUid.get(m[1])||[]; arr.push(s.data); subByUid.set(m[1],arr);
   }
-  webpush.setVapidDetails(env.VAPID_SUBJECT||"mailto:admin@example.com",env.VAPID_PUBLIC_KEY,env.VAPID_PRIVATE_KEY);
+  webpush.setVapidDetails(env.VAPID_SUBJECT,env.VAPID_PUBLIC_KEY,env.VAPID_PRIVATE_KEY);
   let sent=0, expired=0;
   for(const a of apps) {
     if(!a.name.endsWith("/appData/main")) continue;
@@ -145,7 +153,7 @@ async function run(env) {
           continue;
         }
         try { await webpush.sendNotification(s.subscription,payload); success=true; sent++; }
-        catch(e) { if(e.statusCode===404||e.statusCode===410) { expired++; } else console.error("Push send failed",e.statusCode,e.message); }
+        catch(e) { if(e.statusCode===404||e.statusCode===410) { expired++; await removeSubscription(token,s.name); } else console.error("Push send failed",e.statusCode,e.message); }
       }
       if(!success) await removeMarker(token,path);
     }
