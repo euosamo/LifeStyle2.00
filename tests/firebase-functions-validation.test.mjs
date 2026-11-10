@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateAppState, encodeFirestoreValue } from "../firebase-functions/app-data-validation.js";
+import { validateAppState, encodeFirestoreValue, decodeFirestoreValue } from "../firebase-functions/app-data-validation.js";
 
 const validState = () => ({
   page: "home", month: 0, filter: "Alle", search: "",
@@ -76,4 +76,9 @@ test("Firestore encoding wraps nested arrays and escapes reserved field names", 
   const encoded = encodeFirestoreValue({ rows: [[1, 2]], "__private__": "value" });
   assert.deepEqual(encoded.rows[0], { lifestyleFirestoreNestedArrayV1: true, items: [1, 2] });
   assert.equal(encoded.lifestyleFirestoreEscapedField___private__, "value");
+});
+
+test("Firestore array encoding round-trips without changing the finance state", () => {
+  const original = { fixed: [["Rent", "500 €"]], nested: { values: [[1, 2], [3]] }, "__private__": "value" };
+  assert.deepEqual(decodeFirestoreValue(encodeFirestoreValue(original)), original);
 });
