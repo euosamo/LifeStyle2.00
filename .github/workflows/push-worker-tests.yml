@@ -28,6 +28,18 @@ jobs:
       - name: Run push worker tests
         run: node --test tests/push-worker.test.mjs
 
+  firebase-environment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test production and staging Firebase isolation
+        run: node --test tests/firebase-environment.test.mjs
+
   finance-validation:
     runs-on: ubuntu-latest
     steps:
