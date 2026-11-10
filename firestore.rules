@@ -151,15 +151,8 @@ service cloud.firestore {
 
     match /users/{userId}/appData/{documentId} {
       allow read: if isVerifiedOwner(userId) && documentId == 'main';
-      allow create: if isVerifiedOwner(userId)
-          && validAppDataWrite(documentId)
-          && request.resource.data.revision == 1;
-      allow update: if isVerifiedOwner(userId)
-          && validAppDataWrite(documentId)
-          && resource.data.revision is int
-          && resource.data.revision >= 1
-          && resource.data.revision < 2147483647
-          && request.resource.data.revision == resource.data.revision + 1;
+      // Finance snapshots are written only by the validated Admin SDK callable.
+      allow create, update: if false;
       allow delete: if isVerifiedOwner(userId) && documentId == 'main';
     }
 
