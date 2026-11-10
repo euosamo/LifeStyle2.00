@@ -385,7 +385,7 @@ window.lifestyleCloudSave = state => {
     } catch (e) {
       console.error("[Lifestyle] Firestore write failed:", e);
       const detail = e.message || e.code || "Unbekannter Fehler";
-      if (e.code === "lifestyle/sync-conflict") {
+      if (e.code === "lifestyle/sync-conflict" || e.code === "functions/aborted") {
         // A simultaneous transaction retry/conflict is expected with two active devices.
         // Keep the local pending snapshot, but do not repeatedly interrupt the user.
         console.warn("[Lifestyle] Simultaneous cloud write detected; local snapshot retained for the next save.");
