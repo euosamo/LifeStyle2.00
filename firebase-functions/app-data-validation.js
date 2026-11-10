@@ -61,7 +61,7 @@ export function validateAppState(state) {
   const keys = Object.keys(state);
   if (keys.some(key => !STATE_KEYS.has(key))) fail("Unbekanntes Datenfeld in den Finanzdaten.");
   if (REQUIRED_KEYS.some(key => !Object.hasOwn(state, key))) fail("Erforderliche Finanzdaten fehlen.");
-  if (keys.length > 29) fail("Zu viele Hauptfelder.");
+  if (keys.length > STATE_KEYS.size) fail("Zu viele Hauptfelder.");
   for (const [key, limit] of Object.entries(LIST_LIMITS)) {
     if (!Array.isArray(state[key]) || state[key].length > limit) fail(`Ungültige oder zu große Liste: ${key}`);
   }
