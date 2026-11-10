@@ -6,7 +6,8 @@ on:
       - cleanup-hardening-2026-11-10
   pull_request:
     branches:
-      - cleanup-hardening-2026-11-10
+      - security-hardening-2026-11-04
+      - main
 
 permissions:
   contents: read
@@ -21,6 +22,6 @@ jobs:
           node-version: 22
       - name: Install push worker dependencies
         working-directory: push-worker
-        run: npm install --no-audit --no-fund
+        run: npm install --ignore-scripts --no-audit --no-fund
       - name: Run push worker tests
         run: node --test tests/push-worker.test.mjs
