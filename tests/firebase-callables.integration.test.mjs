@@ -37,16 +37,20 @@ function validState() {
 async function makeUser(emailVerified) {
   const user = await auth.createUser({
     email: `callable-${Date.now()}-${Math.random().toString(16).slice(2)}@example.test`,
-    emailVerified
+    emailVerified,
+    password: "Test-password-Only-For-Emulator-42!"
   });
   users.push(user.uid);
-  const customToken = await auth.createCustomToken(user.uid);
   const response = await fetch(
-    `${authOrigin}/identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${apiKey}`,
+    `${authOrigin}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
     {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token: customToken, returnSecureToken: true })
+      body: JSON.stringify({
+        email: user.email,
+        password: "Test-password-Only-For-Emulator-42!",
+        returnSecureToken: true
+      })
     }
   );
   const payload = await response.json();
