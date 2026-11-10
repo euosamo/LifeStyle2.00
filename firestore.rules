@@ -38,7 +38,7 @@ service cloud.firestore {
             'categories', 'layoutOrder', 'layoutVisible', 'currency',
             'pushPromptSeen', 'reminders', 'monthlySalary', 'userName', 'nextPay'
           ])
-          && state.size() <= 29
+          && state.size() <= 30
           && state.page is string
           && state.page.size() <= 32
           && state.month is int
