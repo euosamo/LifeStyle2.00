@@ -417,13 +417,13 @@ window.lifestyleFlushCloudSave = async () => {
 const FIRESTORE_ARRAY_TAG = "lifestyleFirestoreNestedArrayV1";
 const FIRESTORE_ESCAPED_FIELD_PREFIX = "lifestyleFirestoreEscapedField_";
 function encodeFirestoreFieldKey(key) {
-  return /^__.*__$/.test(key) ? FIRESTORE_ESCAPED_FIELD_PREFIX + encodeURIComponent(key) : key;
+  return /^__.*__$/.test(key) || key === FIRESTORE_ARRAY_TAG || key.startsWith(FIRESTORE_ESCAPED_FIELD_PREFIX) ? FIRESTORE_ESCAPED_FIELD_PREFIX + encodeURIComponent(key) : key;
 }
 function decodeFirestoreFieldKey(key) {
   if (!key.startsWith(FIRESTORE_ESCAPED_FIELD_PREFIX)) return key;
   try {
     const original = decodeURIComponent(key.slice(FIRESTORE_ESCAPED_FIELD_PREFIX.length));
-    return /^__.*__$/.test(original) ? original : key;
+    return /^__.*__$/.test(original) || original === FIRESTORE_ARRAY_TAG || original.startsWith(FIRESTORE_ESCAPED_FIELD_PREFIX) ? original : key;
   } catch (_) { return key; }
 }
 function encodeFirestoreValue(value, arrayElement = false) {
