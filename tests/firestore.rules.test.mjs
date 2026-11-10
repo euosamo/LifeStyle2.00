@@ -62,72 +62,27 @@ after(async () => {
   await env?.cleanup();
 });
 
-test("only a verified owner can read, list, write, or delete their own app data", async () => {
+test("finance snapshots are read-only to clients and can only be written by trusted server code", async () => {
   const alice = verified("alice");
   const bob = verified("bob");
   const unverified = env.authenticatedContext("alice", { email_verified: false }).firestore();
   const path = doc(alice, "users/alice/appData/main");
 
-  await assertSucceeds(setDoc(path, validAppData()));
+  await env.withSecurityRulesDisabled(async context => {
+    const admin = context.firestore();
+    const { setDoc: adminSetDoc, doc: adminDoc } = await import("firebase/firestore");
+    await adminSetDoc(adminDoc(admin, "users/alice/appData/main"), {
+      state: validAppState(), revision: 1, updatedAt: new Date()
+    });
+  });
+
   await assertSucceeds(getDoc(path));
   await assertFails(getDoc(doc(bob, "users/alice/appData/main")));
-  await assertFails(setDoc(doc(bob, "users/alice/appData/main"), validAppData()));
-  await assertFails(deleteDoc(doc(bob, "users/alice/appData/main")));
   await assertFails(getDoc(doc(unverified, "users/alice/appData/main")));
-  await assertFails(setDoc(doc(unverified, "users/alice/appData/main"), validAppData()));
-  await assertFails(deleteDoc(doc(unverified, "users/alice/appData/main")));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), "users/alice/appData/main")));
-  await assertSucceeds(deleteDoc(path));
-});
-
-test("app data rejects unknown fields, invalid types, invalid nested settings, and oversized lists", async () => {
-  const db = verified("schema-owner");
-  const path = doc(db, "users/schema-owner/appData/main");
-
-  await assertSucceeds(setDoc(path, validAppData()));
-  await assertFails(setDoc(path, { ...validAppData(), admin: true }));
-
-  const extraStateField = validAppData();
-  extraStateField.state.isAdmin = true;
-  await assertFails(setDoc(path, extraStateField));
-
-  const invalidFilter = validAppData();
-  invalidFilter.state.filter = "public";
-  await assertFails(setDoc(path, invalidFilter));
-
-  const invalidLayout = validAppData();
-  invalidLayout.state.layoutVisible.extra = true;
-  await assertFails(setDoc(path, invalidLayout));
-
-  const invalidReminder = validAppData();
-  invalidReminder.state.reminders.inst.time = "29:99";
-  await assertFails(setDoc(path, invalidReminder));
-
-  const oversizedList = validAppData();
-  oversizedList.state.transactions = Array.from({ length: 10001 }, (_, id) => ({ id: String(id) }));
-  await assertFails(setDoc(path, oversizedList));
-
-  await assertFails(setDoc(doc(db, "users/schema-owner/appData/other"), validAppData()));
-});
-
-test("app data creation and updates both validate schema and monotonic revisions", async () => {
-  const db = verified("revision-owner");
-  const path = doc(db, "users/revision-owner/appData/main");
-
-  await assertFails(setDoc(path, validAppData(2)));
-  await assertSucceeds(setDoc(path, validAppData()));
-  await assertSucceeds(setDoc(path, validAppData(2)));
-  await assertFails(setDoc(path, validAppData(4)));
-  await assertFails(setDoc(path, validAppData(2)));
-
-  const invalidUpdate = validAppData(3);
-  invalidUpdate.state.search = "x".repeat(101);
-  await assertFails(setDoc(path, invalidUpdate));
-  await assertSucceeds(setDoc(path, validAppData(3)));
-
-  const staleTimestamp = validAppData(4);
-  staleTimestamp.updatedAt = new Date();
-  await assertFails(setDoc(path, staleTimestamp));
+  await assertFails(setDoc(path, validAppData()));
+  await assertFails(deleteDoc(path));
+  await assertFails(setDoc(doc(bob, "users/alice/appData/main"), validAppData()));
 });
 
 test("push subscriptions are verified-owner-only, scoped, and schema-validated", async () => {
