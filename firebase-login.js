@@ -3,8 +3,9 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gst
 import { initializeAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, signOut, browserLocalPersistence, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, doc, getDoc, setDoc, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+import { resolveFirebaseEnvironment } from "./firebase-environment.js";
 
-const firebaseConfig = {
+const productionFirebaseConfig = {
   apiKey: "AIzaSyBsklHgKgsiwEmY_PhmLxhYTdiGlbXpCqc",
   authDomain: "lifestyle2-login.firebaseapp.com",
   projectId: "lifestyle2-login",
@@ -12,6 +13,11 @@ const firebaseConfig = {
   messagingSenderId: "436328668120",
   appId: "1:436328668120:web:1550db3d0c8579773d30ad"
 };
+const firebaseEnvironment = resolveFirebaseEnvironment(
+  name => document.querySelector(`meta[name="${name}"]`)?.content || "",
+  productionFirebaseConfig
+);
+const firebaseConfig = firebaseEnvironment.firebaseConfig;
 const gate = document.getElementById("authGate");
 const appRoot = document.getElementById("app");
 const message = document.getElementById("authMessage");
@@ -587,15 +593,17 @@ try {
   const app = initializeApp(firebaseConfig);
   // The public Enterprise site key is supplied through the page metadata after
   // Firebase Console setup. Never ship a secret key in the client.
-  const appCheckSiteKey = document.querySelector('meta[name="firebase-app-check-site-key"]')?.content.trim();
+  const appCheckSiteKey = firebaseEnvironment.appCheckSiteKey.trim();
   if (appCheckSiteKey) {
     appCheck = initializeAppCheck(app, {
       provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
       isTokenAutoRefreshEnabled: true
     });
     window.lifestyleAppCheckConfigured = true;
+    window.lifestyleFirebaseEnvironment = firebaseEnvironment.environment;
   } else {
     window.lifestyleAppCheckConfigured = false;
+    window.lifestyleFirebaseEnvironment = firebaseEnvironment.environment;
     console.warn("[Lifestyle] Firebase App Check ist noch nicht konfiguriert.");
   }
   // Initialize auth directly with browser storage. Avoid awaiting IndexedDB persistence,
