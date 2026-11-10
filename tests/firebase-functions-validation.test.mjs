@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateAppState, validateAppStateBase, encodeFirestoreValue, decodeFirestoreValue } from "../firebase-functions/app-data-validation.js";
+import { validateAppState, validateAppStateBase, encodeFirestoreValue, decodeFirestoreValue, mergeAppState } from "../firebase-functions/app-data-validation.js";
 
 const validState = () => ({
   page: "home", month: 0, filter: "Alle", search: "",
@@ -88,4 +88,42 @@ test("accepts a partial sync base but rejects unknown or oversized base payloads
   assert.throws(() => validateAppStateBase({ admin: true }), /Ungültige Felder/);
   assert.throws(() => validateAppStateBase({ notes: [{ body: "x".repeat(10001) }] }), /Textfeld zu lang/);
   assert.throws(() => validateAppStateBase([]), /Ungültiger Synchronisierungs-Ausgangsstand/);
+});
+
+
+test("accepts all known optional snapshot fields together", () => {
+  const state = validState();
+  state.guideSeen = true;
+  state.onboardingComplete = true;
+  state.nextPayDay = 28;
+  assert.doesNotThrow(() => validateAppState(state));
+});
+
+test("merges unrelated device changes and rejects same-field conflicts", () => {
+  const base = { transactions: [], goals: [], currency: "EUR" };
+  const incoming = { transactions: [{ name: "Local" }], goals: [], currency: "EUR" };
+  const remote = { transactions: [], goals: [{ name: "Remote" }], currency: "EUR" };
+  const merged = mergeAppState(base, incoming, remote);
+  assert.deepEqual(merged.conflicts, []);
+  assert.deepEqual(merged.state, {
+    transactions: [{ name: "Local" }],
+    goals: [{ name: "Remote" }],
+    currency: "EUR"
+  });
+
+  const conflict = mergeAppState(
+    base,
+    { ...incoming, goals: [{ name: "Local goal" }] },
+    remote
+  );
+  assert.deepEqual(conflict.conflicts, ["goals"]);
+});
+
+test("merge preserves remote deletions and applies local deletions", () => {
+  const base = { notes: [{ id: "a" }], currency: "EUR" };
+  const incoming = { notes: [], currency: "EUR" };
+  const remote = { notes: [{ id: "a" }], currency: "USD" };
+  const merged = mergeAppState(base, incoming, remote);
+  assert.deepEqual(merged.conflicts, []);
+  assert.deepEqual(merged.state, { notes: [], currency: "USD" });
 });
