@@ -1,0 +1,26 @@
+name: Push worker tests
+
+on:
+  push:
+    branches:
+      - cleanup-hardening-2026-11-10
+  pull_request:
+    branches:
+      - cleanup-hardening-2026-11-10
+
+permissions:
+  contents: read
+
+jobs:
+  push-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install push worker dependencies
+        working-directory: push-worker
+        run: npm install --no-audit --no-fund
+      - name: Run push worker tests
+        run: node --test tests/push-worker.test.mjs
