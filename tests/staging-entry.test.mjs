@@ -12,7 +12,7 @@ test("staging entry point explicitly selects staging project", () => {
 
 test("staging entry point does not silently use production credentials", () => {
   assert.match(html, /name="firebase-staging-api-key" content="AIzaSyB6aWHfUix_x6HvHDNw1-kx6_nPBnhu7iU"/);
-  assert.match(html, /REPLACE_WITH_STAGING_RECAPTCHA_ENTERPRISE_SITE_KEY/);
+  assert.match(html, /name="firebase-staging-app-check-site-key" content="6LeNHRguAAAAABXpe0y0EIrV3GpTUw3gaPO1FGaf"/);
   assert.doesNotMatch(html, /AIzaSyBsklHgKgsiwEmY_PhmLxhYTdiGlbXpCqc/);
   assert.match(html, /name="firebase-staging-storage-bucket" content="lifestyle200-staging.firebasestorage.app"/);
   assert.match(html, /name="firebase-staging-app-id" content="1:597956662554:web:3a1182d7f15b89ac9908a3"/);
