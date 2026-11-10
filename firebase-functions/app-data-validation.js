@@ -147,3 +147,17 @@ export function decodeFirestoreValue(value) {
   }
   return value;
 }
+
+export function validateAppStateBase(baseState) {
+  if (!baseState || typeof baseState !== "object" || Array.isArray(baseState)) {
+    fail("Ungültiger Synchronisierungs-Ausgangsstand.");
+  }
+  const keys = Object.keys(baseState);
+  if (keys.length > STATE_KEYS.size || keys.some(key => !STATE_KEYS.has(key))) {
+    fail("Ungültige Felder im Synchronisierungs-Ausgangsstand.");
+  }
+  inspectValue(baseState, "baseState");
+  const bytes = Buffer.byteLength(JSON.stringify(baseState), "utf8");
+  if (bytes > MAX_DOCUMENT_BYTES) fail("Synchronisierungs-Ausgangsstand ist zu groß.");
+  return { bytes };
+}
