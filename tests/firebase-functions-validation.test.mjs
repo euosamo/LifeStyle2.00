@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateAppState, encodeFirestoreValue, decodeFirestoreValue } from "../firebase-functions/app-data-validation.js";
+import { validateAppState, validateAppStateBase, encodeFirestoreValue, decodeFirestoreValue } from "../firebase-functions/app-data-validation.js";
 
 const validState = () => ({
   page: "home", month: 0, filter: "Alle", search: "",
@@ -81,4 +81,11 @@ test("Firestore encoding wraps nested arrays and escapes reserved field names", 
 test("Firestore array encoding round-trips without changing the finance state", () => {
   const original = { fixed: [["Rent", "500 €"]], nested: { values: [[1, 2], [3]] }, "__private__": "value" };
   assert.deepEqual(decodeFirestoreValue(encodeFirestoreValue(original)), original);
+});
+
+test("accepts a partial sync base but rejects unknown or oversized base payloads", () => {
+  assert.doesNotThrow(() => validateAppStateBase({ transactions: [], currency: "EUR" }));
+  assert.throws(() => validateAppStateBase({ admin: true }), /Ungültige Felder/);
+  assert.throws(() => validateAppStateBase({ notes: [{ body: "x".repeat(10001) }] }), /Textfeld zu lang/);
+  assert.throws(() => validateAppStateBase([]), /Ungültiger Synchronisierungs-Ausgangsstand/);
 });
