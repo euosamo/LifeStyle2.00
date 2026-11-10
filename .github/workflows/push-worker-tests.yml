@@ -44,3 +44,17 @@ jobs:
         run: node --check firebase-functions/index.js
       - name: Run server-side finance validation tests
         run: node --test tests/firebase-functions-validation.test.mjs
+
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firestore rules test dependencies
+        run: npm install --no-save --no-package-lock firebase firebase-admin @firebase/rules-unit-testing firebase-tools
+      - name: Run Firestore rules emulator tests
+        run: npx firebase emulators:exec --only firestore --project demo-lifestyle-rules "node --test tests/firestore.rules.test.mjs"
