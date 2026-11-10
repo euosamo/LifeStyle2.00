@@ -162,3 +162,25 @@ export function validateAppStateBase(baseState) {
   if (bytes > MAX_DOCUMENT_BYTES) fail("Synchronisierungs-Ausgangsstand ist zu groß.");
   return { bytes };
 }
+
+
+export function mergeAppState(baseState, incomingState, remoteState) {
+  const nextState = { ...remoteState };
+  const changedKeys = new Set([...Object.keys(baseState), ...Object.keys(incomingState)]);
+  const conflicts = [];
+  for (const key of changedKeys) {
+    const baseValue = JSON.stringify(baseState[key]);
+    const localValue = JSON.stringify(incomingState[key]);
+    const remoteValue = JSON.stringify(remoteState[key]);
+    const localChanged = localValue !== baseValue;
+    const remoteChanged = remoteValue !== baseValue;
+    if (localChanged && remoteChanged && localValue !== remoteValue) {
+      conflicts.push(key);
+      continue;
+    }
+    if (!localChanged) continue;
+    if (Object.hasOwn(incomingState, key)) nextState[key] = incomingState[key];
+    else delete nextState[key];
+  }
+  return { state: nextState, conflicts };
+}
