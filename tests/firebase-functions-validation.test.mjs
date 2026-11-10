@@ -79,7 +79,7 @@ test("Firestore encoding wraps nested arrays and escapes reserved field names", 
 });
 
 test("Firestore array encoding round-trips without changing the finance state", () => {
-  const original = { fixed: [["Rent", "500 €"]], nested: { values: [[1, 2], [3]] }, "__private__": "value" };
+  const original = { fixed: [["Rent", "500 €"]], nested: { values: [[1, 2], [3]] }, "__private__": "value", lifestyleFirestoreNestedArrayV1: true, lifestyleFirestoreEscapedField_literal: "keep" };
   assert.deepEqual(decodeFirestoreValue(encodeFirestoreValue(original)), original);
 });
 
