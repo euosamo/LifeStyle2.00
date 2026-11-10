@@ -28,3 +28,10 @@ test("CSP permits the dedicated staging Firebase auth frame", async () => {
   const headers = await readFile(new URL("../_headers", import.meta.url), "utf8");
   assert.ok(headers.includes("frame-src https://lifestyle2-login.firebaseapp.com https://lifestyle200-staging.firebaseapp.com"));
 });
+
+
+test("CSP supports Firebase Auth dynamic script loading without TrustedScriptURL blocking", async () => {
+  const headers = await readFile(new URL("../_headers", import.meta.url), "utf8");
+  assert.match(headers, /script-src[^\\n]*https:\\/\\/apis\\.googleapis\\.com/);
+  assert.doesNotMatch(headers, /require-trusted-types-for 'script'/);
+});
