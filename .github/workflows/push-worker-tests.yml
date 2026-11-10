@@ -27,3 +27,20 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Run push worker tests
         run: node --test tests/push-worker.test.mjs
+
+  finance-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firebase Functions dependencies
+        working-directory: firebase-functions
+        run: npm install --no-audit --no-fund
+      - name: Check Firebase Functions syntax
+        run: node --check firebase-functions/index.js
+      - name: Run server-side finance validation tests
+        run: node --test tests/firebase-functions-validation.test.mjs
