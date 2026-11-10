@@ -2,7 +2,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { validateAppState, encodeFirestoreValue } from "./app-data-validation.js";
+import { validateAppState, encodeFirestoreValue, decodeFirestoreValue } from "./app-data-validation.js";
 
 initializeApp();
 const REGION = "europe-west3";
@@ -88,7 +88,7 @@ export const saveOwnAppData = onCall(
         if (!Number.isSafeInteger(revision) || revision < 0 || revision >= MAX_REVISION) {
           throw new HttpsError("failed-precondition", "Ungültige oder ausgeschöpfte Datenrevision.");
         }
-        const remoteState = current.exists ? currentData.state || {} : {};
+        const remoteState = current.exists ? decodeFirestoreValue(currentData.state || {}) : {};
         const nextState = { ...remoteState };
         const changedKeys = new Set([...Object.keys(base), ...Object.keys(incoming)]);
         for (const key of changedKeys) {
