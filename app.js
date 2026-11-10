@@ -48,7 +48,7 @@ function runAppAction(action,event,target){if(action.length>300)throw new Error(
  const result=fn(...args);if(result&&typeof result.catch==='function')result.catch(error=>console.error('[Lifestyle] UI action failed:',error));
  }}
 for(const eventName of ['click','change','input','focus'])document.addEventListener(eventName==='focus'?'focusin':eventName,event=>{const target=event.target.closest?.('[data-app-event]');if(!target||target.dataset.appEvent!==eventName)return;try{runAppAction(target.dataset.appAction||'',event,target)}catch(error){console.error('[Lifestyle] Rejected app UI action:',error)}},true);
-let state={page:'home',month:0,filter:'Alle',search:'',bookingFilterOpen:false,bookingPeriod:'all',bookingSort:'newest',fixedMonth:false,oneAll:false,instOpen:false,transactions:[],fixed:[],one:[],inst:[],goals:[],accounts:[],notes:[],categories:[],layoutOrder:['fixed','one','installments','goals'],layoutVisible:{fixed:true,one:true,installments:true,goals:true},currency:'EUR',pushPromptSeen:false};
+let state={page:'home',month:0,filter:'Alle',search:'',bookingFilterOpen:false,bookingPeriod:'all',bookingSort:'newest',fixedMonth:false,oneAll:false,instOpen:false,transactions:[],fixed:[],one:[],inst:[],goals:[],accounts:[],notes:[],categories:[],layoutOrder:['fixed','one','installments','goals'],layoutVisible:{fixed:true,one:true,installments:true,goals:true},currency:'EUR',pushPromptSeen:false,nextPay:''};
 const defaultState={...state};
 const LAYOUT_KEYS=['fixed','one','installments','goals'];
 function normalizeSavedState(saved,page){
