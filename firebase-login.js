@@ -318,40 +318,20 @@ window.lifestyleDeleteAccount = async function () {
 };
 let cloudSaveQueue = Promise.resolve();
 async function writeCloudSnapshot(saveUser, snapshot, baseSnapshot) {
-  if (!cloudReady || !user || user.uid !== saveUser.uid || activeUid !== saveUser.uid) throw new Error("Anmeldung nicht mehr aktiv.");
-  let committedState = null;
-  let committedRevision = 0;
-  await runTransaction(db, async transaction => {
-    const current = await transaction.get(ref(saveUser.uid));
-    const currentData = current.exists() ? current.data() : {};
-    const actualRevision = Number(currentData.revision || 0);
-    const remoteState = current.exists() ? decodeFirestoreValue(currentData.state) : {};
-    const nextState = cloneState(remoteState || {});
-    const base = baseSnapshot && typeof baseSnapshot === "object" ? baseSnapshot : {};
-    const local = snapshot && typeof snapshot === "object" ? snapshot : {};
-    const keys = new Set([...Object.keys(base), ...Object.keys(local)]);
-    for (const key of keys) {
-      const before = JSON.stringify(base[key]);
-      const after = JSON.stringify(local[key]);
-      if (before === after) continue;
-      if (Object.prototype.hasOwnProperty.call(local, key)) nextState[key] = local[key];
-      else delete nextState[key];
-    }
-    committedState = nextState;
-    // Rendering an incoming snapshot calls persistState(). If that snapshot is
-    // already identical to Firestore, do not create another revision: otherwise
-    // both devices continuously trigger each other's realtime listeners.
-    if (JSON.stringify(nextState) === JSON.stringify(remoteState || {})) {
-      committedRevision = actualRevision;
-      return;
-    }
-    committedRevision = actualRevision + 1;
-    transaction.set(ref(saveUser.uid), {
-      state: encodeFirestoreValue(nextState),
-      revision: committedRevision,
-      updatedAt: serverTimestamp()
-    });
+  if (!cloudReady || !user || user.uid !== saveUser.uid || activeUid !== saveUser.uid) {
+    throw new Error("Anmeldung nicht mehr aktiv.");
+  }
+  if (!functions) throw new Error("Sicherer Speicherdienst ist nicht verfügbar.");
+  const saveSnapshot = httpsCallable(functions, "saveOwnAppData");
+  const result = await saveSnapshot({
+    state: snapshot,
+    baseState: baseSnapshot && typeof baseSnapshot === "object" ? baseSnapshot : {}
   });
+  const committedState = result.data?.state;
+  const committedRevision = Number(result.data?.revision);
+  if (!committedState || !Number.isSafeInteger(committedRevision) || committedRevision < 1) {
+    throw new Error("Der Speicherdienst hat keine gültige Bestätigung zurückgegeben.");
+  }
   cloudRevision = Math.max(cloudRevision, committedRevision);
   lastCloudState = cloneState(committedState);
   try {
