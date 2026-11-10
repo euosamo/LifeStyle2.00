@@ -153,7 +153,7 @@ service cloud.firestore {
       allow read: if isVerifiedOwner(userId) && documentId == 'main';
       // Finance snapshots are written only by the validated Admin SDK callable.
       allow create, update: if false;
-      allow delete: if isVerifiedOwner(userId) && documentId == 'main';
+      allow delete: if false;
     }
 
     match /users/{userId}/pushSubscriptions/{subscriptionId} {
