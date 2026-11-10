@@ -2,7 +2,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { validateAppState, encodeFirestoreValue, decodeFirestoreValue } from "./app-data-validation.js";
+import { validateAppState, validateAppStateBase, encodeFirestoreValue, decodeFirestoreValue } from "./app-data-validation.js";
 
 initializeApp();
 const REGION = "europe-west3";
@@ -76,6 +76,7 @@ export const saveOwnAppData = onCall(
 
     try {
       validateAppState(incoming);
+      validateAppStateBase(base);
       const db = getFirestore();
       const document = db.doc(`users/${auth.uid}/appData/main`);
       let savedState;
