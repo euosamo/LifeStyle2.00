@@ -22,3 +22,9 @@ test("staging entry point does not register production PWA service worker or man
   assert.doesNotMatch(html, /manifest\.webmanifest/);
   assert.doesNotMatch(html, /sw-register\.js/);
 });
+
+
+test("CSP permits the dedicated staging Firebase auth frame", async () => {
+  const headers = await readFile(new URL("../_headers", import.meta.url), "utf8");
+  assert.match(headers, /frame-src[^\\n]*https:\\/\\/lifestyle200-staging\\.firebaseapp\\.com/);
+});
