@@ -65,7 +65,7 @@ export function validateAppState(state) {
   for (const [key, limit] of Object.entries(LIST_LIMITS)) {
     if (!Array.isArray(state[key]) || state[key].length > limit) fail(`Ungültige oder zu große Liste: ${key}`);
   }
-  if (state.page.length > 32 || typeof state.page !== "string") fail("Ungültige Seite.");
+  if (typeof state.page !== "string" || state.page.length > 32) fail("Ungültige Seite.");
   if (!Number.isInteger(state.month) || state.month < -1 || state.month > 1) fail("Ungültiger Monatsfilter.");
   if (!["Alle", "Einnahmen", "Ausgaben"].includes(state.filter)) fail("Ungültiger Buchungsfilter.");
   if (typeof state.search !== "string" || state.search.length > 100) fail("Ungültige Suche.");
