@@ -34,11 +34,26 @@ function val(v) {
 }
 function fields(doc) { return Object.fromEntries(Object.entries(doc.fields||{}).map(([k,v])=>[k,val(v)])); }
 async function collectionGroup(token,name,fieldPaths) {
-  const structuredQuery={from:[{collectionId:name,allDescendants:true}],limit:1000};
-  if(Array.isArray(fieldPaths)&&fieldPaths.length) structuredQuery.select={fields:fieldPaths.map(fieldPath=>({fieldPath}))};
-  const res=await fetch(FIRESTORE+":runQuery",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({structuredQuery})});
-  if(!res.ok) throw new Error("Firestore query "+name+": "+res.status+" "+await res.text());
-  return (await res.json()).filter(x=>x.document).map(x=>({name:x.document.name,data:fields(x.document)}));
+  const results=[];
+  let lastName=null;
+  for (;;) {
+    const structuredQuery={
+      from:[{collectionId:name,allDescendants:true}],
+      orderBy:[{field:{fieldPath:"__name__"},direction:"ASCENDING"}],
+      limit:1000
+    };
+    if(lastName) structuredQuery.startAt={values:[{referenceValue:lastName}],before:false};
+    if(Array.isArray(fieldPaths)&&fieldPaths.length) structuredQuery.select={fields:[{fieldPath:"__name__"},...fieldPaths.map(fieldPath=>({fieldPath}))]};
+    const res=await fetch(FIRESTORE+":runQuery",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({structuredQuery})});
+    if(!res.ok) throw new Error("Firestore query "+name+": "+res.status+" "+await res.text());
+    const page=(await res.json()).filter(x=>x.document);
+    for(const item of page) results.push({name:item.document.name,data:fields(item.document)});
+    if(page.length<1000) break;
+    const nextName=page[page.length-1].document.name;
+    if(!nextName || nextName===lastName) throw new Error("Firestore query "+name+": pagination cursor did not advance.");
+    lastName=nextName;
+  }
+  return results;
 }
 async function marker(token,path,create) {
   const url=FIRESTORE+"/"+path;
