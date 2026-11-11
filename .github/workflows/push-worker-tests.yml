@@ -3,10 +3,10 @@ name: Push worker tests
 on:
   push:
     branches:
-      - cleanup-hardening-2026-11-10
+      - main-based-security-rebuild-2026-11-10
   pull_request:
     branches:
-      - cleanup-hardening-2026-11-10
+      - main-based-security-rebuild-2026-11-10
   workflow_dispatch:
 
 permissions:

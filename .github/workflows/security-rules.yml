@@ -2,9 +2,9 @@ name: Security rules tests
 
 on:
   push:
-    branches: [security-hardening-2026-11-04]
+    branches: [main-based-security-rebuild-2026-11-10]
   pull_request:
-    branches: [main]
+    branches: [main-based-security-rebuild-2026-11-10]
 
 concurrency:
   group: security-rules-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
