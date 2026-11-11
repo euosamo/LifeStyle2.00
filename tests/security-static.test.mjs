@@ -14,6 +14,7 @@ test("main application interface remains the original authenticated inline app",
   assert.match(html, /window\.lifestyleApplyState/);
   assert.match(html, /src="\.\/firebase-login\.js"/);
   assert.match(html, /src="\.\/backup-utils\.js"/);
+  assert.match(html, /LifestyleBackup\.create\(state\)/);
   assert.match(html, /firebase-app-check-site-key/);
   assert.match(html, /nextPay:''/);
   assert.match(html, /<style>/);
