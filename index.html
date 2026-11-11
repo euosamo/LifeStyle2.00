@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#061323"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="firebase-app-check-site-key" content="6LerVhYuAAAAAHdJ6xAWKyKYUV-DV9k3cdyeQB1q">
+<meta name="firebase-staging-api-key" content="">
+<meta name="firebase-staging-auth-domain" content="">
+<meta name="firebase-staging-project-id" content="">
+<meta name="firebase-staging-storage-bucket" content="">
+<meta name="firebase-staging-messaging-sender-id" content="">
+<meta name="firebase-staging-app-id" content="">
+<meta name="firebase-staging-app-check-site-key" content="">
 <title>Finanzen – Übersicht</title>
 <style>
 :root{--bg:#030d1b;--panel:#07182b;--panel2:#0a2038;--panel3:#0d2947;--line:#173653;--text:#f3f7ff;--muted:#91a7c1;--blue:#1687ff;--blue2:#2b96ff;--green:#45d887;--red:#ff6568;--orange:#ff8b31;--purple:#8c5bff;--radius:17px}
@@ -204,7 +211,7 @@ button, input, select, textarea { max-width:100%; }
 </div>
 <script>
 const euro=n=>n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
-let state={page:'home',month:0,filter:'Alle',search:'',bookingFilterOpen:false,bookingPeriod:'all',bookingSort:'newest',fixedMonth:false,oneAll:false,instOpen:false,transactions:[],fixed:[],one:[],inst:[],goals:[],accounts:[],notes:[],categories:[],layoutOrder:['fixed','one','installments','goals'],layoutVisible:{fixed:true,one:true,installments:true,goals:true},currency:'EUR',pushPromptSeen:false};
+let state={page:'home',month:0,filter:'Alle',search:'',bookingFilterOpen:false,bookingPeriod:'all',bookingSort:'newest',fixedMonth:false,oneAll:false,instOpen:false,transactions:[],fixed:[],one:[],inst:[],goals:[],accounts:[],notes:[],categories:[],layoutOrder:['fixed','one','installments','goals'],layoutVisible:{fixed:true,one:true,installments:true,goals:true},currency:'EUR',pushPromptSeen:false,nextPay:''};
 const defaultState={...state};
 window.lifestyleApplyState=function(saved,options={}){const currentPage=state.page||'home';state={...defaultState,...(saved&&typeof saved==='object'?saved:{}),page:currentPage};state.monthlySalary=Number(state.monthlySalary)||0;state.userName=state.userName||'';state.reminders=state.reminders||{inst:{enabled:false,day:1,time:'09:00'},one:{enabled:false,day:1,time:'09:00'},goals:{enabled:false,day:1,time:'09:00'}};state.notes=(state.notes||[]).map(n=>({...n,reminder:n.reminder||{enabled:false,date:'',time:'09:00'}}));state.one=(state.one||[]).map((x,i)=>{if(!x[5]||typeof x[5]!=='object')x[5]={enabled:false,date:'',time:'09:00'};if(!x[6])x[6]='one-migrated-'+i+'-'+String(x[0]||'ausgabe');return x;});state.reminderFired=state.reminderFired||{};if(options.render!==false)render();};
 state.monthlySalary=Number(state.monthlySalary)||0;state.userName=state.userName||'';
@@ -454,6 +461,7 @@ document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>
 // Rendern und Erinnerungen starten erst nach erfolgreichem Laden des angemeldeten Kontos.
 </script>
 
+<script src="./backup-utils.js"></script>
 <script type="module" src="./firebase-login.js"></script>
 
 <script>
