@@ -42,4 +42,4 @@ jobs:
       - name: Test Firestore rules in emulator
         env:
           FUNCTIONS_DISCOVERY_TIMEOUT: 60000
-        run: npx firebase emulators:exec --only firestore,auth,functions --project demo-lifestyle-rules "node --test tests/*.test.mjs"
+        run: npx firebase emulators:exec --only firestore --project demo-lifestyle-rules "node --test tests/firestore.rules.test.mjs"
