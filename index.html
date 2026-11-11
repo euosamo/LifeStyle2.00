@@ -455,7 +455,7 @@ async function renameCategory(i){const c=await appPrompt('Kategorie umbenennen:'
 async function deleteCategory(i){if(await appConfirm('Kategorie „'+state.categories[i]+'“ löschen?')){state.categories.splice(i,1);render();showToast('Kategorie gelöscht')}}
 function toggleLayout(k,v){state.layoutVisible[k]=v;persistState()}
 function moveLayout(k,delta){const a=state.layoutOrder, i=a.indexOf(k), j=i+delta;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];render()}
-function downloadBackup(){let blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='finanzen-sicherung.json';a.click();URL.revokeObjectURL(url)}
+function downloadBackup(){try{const json=window.LifestyleBackup?window.LifestyleBackup.create(state):JSON.stringify(state,null,2);const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lifestyle-finanz-sicherung.json';a.click();URL.revokeObjectURL(url)}catch(e){showToast(e?.message||'Datensicherung konnte nicht erstellt werden.')}}
 async function resetDemo(){if(!await appConfirm('Wirklich alle lokal gespeicherten Änderungen zurücksetzen?'))return;localStorage.removeItem('lifestyle-finanz-app-v2');location.reload()}
 document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));
 // Rendern und Erinnerungen starten erst nach erfolgreichem Laden des angemeldeten Kontos.
