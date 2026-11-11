@@ -57,6 +57,7 @@ test("hostile text remains data and is handled by the app HTML escaper", () => {
   const state = validState();
   state.notes[0].body = '<img src=x onerror="alert(1)">';
   assert.equal(backup.parse(backup.create(state)).notes[0].body, state.notes[0].body);
-  const html = readFileSync("app.js", "utf8");
-  assert.match(html, /escapeHTML\(n\.body\)/);
+  const html = readFileSync("index.html", "utf8");
+  assert.match(html, /function escapeHTML\(v\)/);
+  assert.match(html, /&lt;.*&gt;/s);
 });
