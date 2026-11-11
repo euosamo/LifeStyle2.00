@@ -1,3 +1,5 @@
+> **Rebuild-Hinweis (11.11.2026):** Die historische Prüfung unten beschreibt teilweise den früheren Security-Branch und dessen separate App-Implementierung. Der aktuelle Entwicklungszweig main-based-security-rebuild-2026-11-10 wurde neu auf dem unveränderten main aufgebaut; die ursprüngliche index.html-Oberfläche bleibt erhalten. Die aktuelle erzwungene CSP erlaubt aus Kompatibilitätsgründen vorübergehend Inline-Skripte/-Styles; die strengere Variante ist nur Report-Only. Firebase Functions und Firestore-Regeln sind im Branch vorbereitet und durch Emulator-CI geprüft, aber nicht deployed. Reale App-Check-Token-Ausstellung, Live-Firebase-Regeln, Cloudflare-Header und echte Geräte sind nicht verifiziert.
+
 # Lifestyle – Sicherheitsprüfung
 
 ## Sicherheitsverbesserung – 5. November 2026
