@@ -49,9 +49,9 @@ Es ist kein Zahlungssystem aktiv. Free ist mit 0 € und Premium mit vorläufig 
 
 ## Cloudflare Pages und Push-Worker
 
-- Firebase Functions liegen absichtlich in `firebase-functions/`, weil ein Repository-Root-Ordner `functions/` von Cloudflare Pages als Pages Functions interpretiert wird. Das statische Pages-Paket wird mit kein eigener Build-Befehl explizit nach das Repository-Root-Verzeichnis erstellt. In Cloudflare Pages muss als Build command `node scripts/build-pages.mjs` und als Build output directory `dist` konfiguriert sein. Das Paket enthält nur die Web-App und `_headers`; Tests, Firestore Rules und Firebase-Backendcode bleiben ausgeschlossen. Die Pages-Einstellung ist im Dashboard noch manuell zu bestätigen.
-- `_headers` setzt HTTP-Sicherheitsheader nur, wenn die Datei im konfigurierten Pages-Ausgabeverzeichnis liegt. Das Build-Skript legt sie dorthin. Pages-Headerregeln gelten für statische Assetantworten; Antworten von Pages Functions brauchen eigene Headerregeln.
-- Nach dem Deploy die tatsächlichen Antwortheader auf `https://lifestyle2-00.pages.dev` prüfen. CSP-Fehler in der Browserkonsole kontrollieren, da Firebase Auth und Firestore weiterhin erreichbar sein müssen.
+- Firebase Functions liegen absichtlich in `firebase-functions/`, weil ein Repository-Root-Ordner `functions/` von Cloudflare Pages als Pages Functions interpretiert wird. Das Pages-Paket wird mit `node scripts/build-pages.mjs` über eine explizite Allowlist nach `dist/` gebaut. Dadurch werden ausschließlich Web-App-Dateien und `_headers` veröffentlicht; Firebase-Backendcode, Firestore-Regeln, Tests und interne Dokumentation bleiben außerhalb des öffentlichen Pakets.
+- `_headers` wird durch das Build-Skript in `dist/` kopiert. Pages-Headerregeln gelten für statische Assetantworten; Antworten von Pages Functions brauchen eigene Headerregeln.
+- Nach einem später ausdrücklich freigegebenen Preview-Deploy die tatsächlichen Antwortheader auf der Preview-Domain prüfen. CSP-Fehler kontrollieren, da Firebase Auth, Firestore und Functions erreichbar sein müssen.
 - Worker-Secrets `FIREBASE_SERVICE_ACCOUNT_JSON` und `VAPID_PRIVATE_KEY` ausschließlich als Cloudflare Worker Secrets speichern. Niemals in GitHub, `wrangler.toml` oder Client-JavaScript eintragen.
 - `VAPID_PUBLIC_KEY` darf öffentlich sein. `VAPID_SUBJECT` ist eine Kontaktangabe.
 - Das Service Account des Push-Workers nur mit den minimal nötigen Firestore-Rechten ausstatten. Keine privaten Schlüssel im Browser verwenden.
@@ -62,9 +62,9 @@ Es ist kein Zahlungssystem aktiv. Free ist mit 0 € und Premium mit vorläufig 
 
 1. Cloudflare Dashboard → **Workers & Pages** → das bestehende Pages-Projekt öffnen. Repository und Produktionsbranch kontrollieren; Produktionsbranch auf `main` belassen und nicht verändern.
 2. **Settings → Builds & deployments → Build configuration**: Root directory auf Repository-Wurzel belassen, Build command auf `node scripts/build-pages.mjs` setzen und Build output directory auf `dist`. Build image / Environment variables: `NODE_VERSION=22` setzen, falls die Dashboard-Vorlage eine Runtime-Version verlangt.
-3. Im Abschnitt **Branch control / Branch deployments** sicherstellen, dass `security-hardening-2026-11-04` nur als Preview gebaut wird und nicht Production ersetzt. Git-Integration kann Preview bei einem Push auslösen; in dieser Sitzung gab es keinen Push und keine Veröffentlichung. Vor einem späteren Push erst ausdrücklich freigeben.
-4. Nach einem freigegebenen Preview-Build URL aufrufen und in DevTools → Network bei HTML, JS, CSS, Manifest und Icons die Antwortheader prüfen. Erwartet: CSP ohne `unsafe-inline`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, HSTS, COOP/CORP. Fehlerfrei Login, App Check, Firebase Calls und PWA-Install/Updates testen. `_headers` wird durch den Build in `dist` kopiert. Cloudflare dokumentiert, dass `_headers` statische Antworten beeinflusst; Pages Function-Antworten brauchen separat gesetzte Header.
-5. Prüfen, dass die Preview keine Backenddateien ausliefert. Das lokale Build enthält genau zwölf allowlist-Dateien; URLs wie `/firebase-functions/index.js`, `/firestore.rules` und `/tests/` dürfen nicht zugänglich sein.
+3. Den Branch `main-based-security-rebuild-2026-11-10` ausschließlich als Preview behandeln. Den Produktionsbranch `main` nicht ändern und den Rebuild nicht als Production deployen, bevor die Freigabe ausdrücklich erteilt wurde.
+4. Nach einem freigegebenen Preview-Build URL aufrufen und in DevTools → Network die Antwortheader prüfen. Die aktuelle erzwungene CSP erlaubt aus Kompatibilitätsgründen noch Inline-Skripte/-Styles; die strengere CSP ist Report-Only. Login, App Check, Firebase Calls und PWA-Install/Updates testen. `_headers` wird durch das Build in `dist/` kopiert.
+5. Prüfen, dass die Preview keine Backenddateien ausliefert. Der Build-Test kontrolliert die Allowlist; URLs wie `/firebase-functions/index.js`, `/firestore.rules` und `/tests/` dürfen nicht zugänglich sein.
 
 ### App-Check-Einrichtung Schritt für Schritt
 

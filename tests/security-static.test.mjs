@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
@@ -71,4 +72,15 @@ test("service worker caches current auth modules and does not replace the main U
   assert.match(sw, /firebase-environment\.js/);
   assert.match(sw, /backup-utils\.js/);
   assert.match(sw, /firebase-login\.js/);
+});
+
+test("Pages build publishes only the explicit web-app allowlist", () => {
+  const result = spawnSync(process.execPath, ["scripts/build-pages.mjs"], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  for (const file of ["index.html", "firebase-login.js", "firebase-environment.js", "backup-utils.js", "sw.js", "_headers", "manifest.webmanifest"]) {
+    assert.ok(existsSync(`dist/${file}`), `missing public asset: ${file}`);
+  }
+  for (const file of ["firebase-functions/index.js", "firestore.rules", "tests/security-static.test.mjs", "FIREBASE-SETUP.md"]) {
+    assert.equal(existsSync(`dist/${file}`), false, `backend/internal file leaked into Pages output: ${file}`);
+  }
 });
