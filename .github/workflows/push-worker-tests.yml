@@ -67,7 +67,7 @@ jobs:
       - name: Check Firebase Functions syntax
         run: node --check firebase-functions/index.js
       - name: Run server-side finance validation tests
-        run: node --test tests/firebase-functions-validation.test.mjs
+        run: node --test tests/firebase-functions-validation.test.mjs tests/backup-utils.test.mjs tests/security-static.test.mjs
 
   firebase-callables-integration:
     runs-on: ubuntu-latest
