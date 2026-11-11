@@ -84,3 +84,13 @@ test("Pages build publishes only the explicit web-app allowlist", () => {
     assert.equal(existsSync(`dist/${file}`), false, `backend/internal file leaked into Pages output: ${file}`);
   }
 });
+
+test("user-controlled finance labels and icon classes are escaped before HTML rendering", () => {
+  const html = read("index.html");
+  assert.match(html, /function safeIconClass\(value\)/);
+  assert.match(html, /function tx\(t\)[\s\S]*?escapeHTML\(t\.name\)/);
+  assert.match(html, /function accounts\(\)[\s\S]*?escapeHTML\(x\[0\]\)/);
+  assert.match(html, /safeIconClass\(x\[4\]\)/);
+  assert.match(html, /safeIconClass\(x\[5\]\)/);
+  assert.doesNotMatch(html, /onclick="showToast\('\$\{x\[0\]\}/);
+});
